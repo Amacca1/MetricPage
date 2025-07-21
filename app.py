@@ -9,9 +9,13 @@ app = Flask(__name__)
 
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com/v1/chat/completions")
-MODEL = os.getenv("ANTHROPIC_MODEL")
-VERSION = os.getenv("ANTHROPIC_VERSION")
+ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
+MODEL = os.getenv("MODEL")
+VERSION = os.getenv("VERSION")
+print(f"Using API Key: {ANTHROPIC_API_KEY}")
+print(f"Using API URL: {ANTHROPIC_API_URL}")
+print(f"Using Model: {MODEL}")
+print(f"Using Version: {VERSION}")
 
 @app.route('/')
 def index():
@@ -29,7 +33,7 @@ def chat():
 
     headers = {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,  # <-- lowercase x
+        "x-api-key": ANTHROPIC_API_KEY,
         "anthropic-version": VERSION
     }
 
