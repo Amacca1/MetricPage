@@ -39,7 +39,7 @@ def chat():
 
     payload = {
         "model": MODEL,
-        "max_tokens": 16384,
+        "max_tokens": 1024,
         "system": "You are Claude, an AI assistant.",
         "messages": messages
     }
