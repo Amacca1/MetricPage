@@ -344,6 +344,17 @@
     <script>
         let conversationHistory = [];
 
+        // Load messages from localStorage on page load
+        window.onload = function() {
+            const saved = localStorage.getItem('claude_conversation');
+            if (saved) {
+                conversationHistory = JSON.parse(saved);
+                for (const msg of conversationHistory) {
+                    addMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content);
+                }
+            }
+        };
+
         // Auto-resize textarea
         const messageInput = document.getElementById('messageInput');
         messageInput.addEventListener('input', function() {
@@ -392,6 +403,7 @@
                     if (conversationHistory.length > 20) {
                         conversationHistory = conversationHistory.slice(-20);
                     }
+                    saveConversation(); // Save conversation to localStorage
                 } else {
                     showError(data.error || 'Unknown error');
                 }
@@ -467,6 +479,11 @@
             setTimeout(() => {
                 errorDiv.remove();
             }, 5000);
+        }
+
+        // Save messages to localStorage after each exchange
+        function saveConversation() {
+            localStorage.setItem('claude_conversation', JSON.stringify(conversationHistory));
         }
     </script>
 </body>
