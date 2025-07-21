@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Repo Viewer</title>
+    <style>
+        body { font-family: 'Fira Mono', monospace; margin: 0; background: #23272e; color: #eee; }
+        .container { display: flex; height: 100vh; }
+        .sidebar {
+            width: 260px;
+            background: #181a20;
+            padding: 16px 0;
+            overflow-y: auto;
+            border-right: 1px solid #333;
+        }
+        .file-list { list-style: none; padding: 0; margin: 0; }
+        .file-list li {
+            padding: 6px 24px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .file-list li:hover, .file-list li.selected {
+            background: #2d313a;
+        }
+        .main {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        pre {
+            background: #181a20;
+            color: #eee;
+            padding: 18px;
+            border-radius: 8px;
+            font-size: 15px;
+            overflow-x: auto;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <ul class="file-list" id="fileList"></ul>
+    </div>
+    <div class="main">
+        <h2 id="filename"></h2>
+        <pre id="fileContent">// Select a file to view its contents</pre>
+    </div>
+</div>
+<script>
+async function loadFileTree() {
+    const res = await fetch('/filetree');
+    const files = await res.json();
+    const fileList = document.getElementById('fileList');
+    fileList.innerHTML = '';
+    files.forEach(file => {
+        const li = document.createElement('li');
+        li.textContent = file;
+        li.onclick = () => selectFile(file, li);
+        fileList.appendChild(li);
+    });
+}
+
+async function selectFile(file, li) {
+    document.querySelectorAll('.file-list li').forEach(el => el.classList.remove('selected'));
+    li.classList.add('selected');
+    document.getElementById('filename').textContent = file;
+    const res = await fetch('/filecontent?path=' + encodeURIComponent(file));
+    const data = await res.json();
+    document.getElementById('fileContent').textContent = data.content || data.error;
+}
+
+window.onload = loadFileTree;
+</script>
+</body>
+</html>
