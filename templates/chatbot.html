@@ -344,17 +344,6 @@
     <script>
         let conversationHistory = [];
 
-        // Load messages from localStorage on page load
-        window.onload = function() {
-            const saved = localStorage.getItem('claude_conversation');
-            if (saved) {
-                conversationHistory = JSON.parse(saved);
-                for (const msg of conversationHistory) {
-                    addMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content);
-                }
-            }
-        };
-
         // Auto-resize textarea
         const messageInput = document.getElementById('messageInput');
         messageInput.addEventListener('input', function() {
@@ -481,10 +470,6 @@
             }, 5000);
         }
 
-        // Save messages to localStorage after each exchange
-        function saveConversation() {
-            localStorage.setItem('claude_conversation', JSON.stringify(conversationHistory));
-        }
     </script>
 </body>
 </html>
