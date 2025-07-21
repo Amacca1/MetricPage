@@ -1,0 +1,74 @@
+<body>
+    Hello, this is the coder page!
+    <p>Click the button below to open the chatbot.</p>
+</body>
+
+<!-- Floating Chat Widget -->
+<style>
+#chatbot-fab {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  cursor: pointer;
+  z-index: 9999;
+  transition: background 0.2s;
+}
+#chatbot-fab:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+#chatbot-widget {
+  position: fixed;
+  bottom: 100px;
+  right: 32px;
+  width: 380px;
+  height: 540px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+  z-index: 10000;
+}
+#chatbot-widget iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+#chatbot-widget-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 22px;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 10001;
+}
+</style>
+
+<div id="chatbot-fab" title="Chat with Claude">💬</div>
+<div id="chatbot-widget">
+  <button id="chatbot-widget-close" title="Close">&times;</button>
+  <iframe src="http://127.0.0.1:5000/chatbot" title="Claude Chatbot"></iframe>
+</div>
+
+<script>
+const fab = document.getElementById('chatbot-fab');
+const widget = document.getElementById('chatbot-widget');
+const closeBtn = document.getElementById('chatbot-widget-close');
+
+fab.onclick = () => { widget.style.display = 'flex'; fab.style.display = 'none'; }
+closeBtn.onclick = () => { widget.style.display = 'none'; fab.style.display = 'flex'; }
+</script>
