@@ -3,6 +3,8 @@ import requests
 from dotenv import load_dotenv
 import os
 import re
+import ast
+import json
 
 load_dotenv()
 
@@ -71,8 +73,8 @@ def suggest_doc():
         "You are an expert code documentation assistant. "
         "Given the following code, suggest additional docstrings or inline comments "
         "that would improve its clarity and maintainability. "
-        "Reply ONLY with the suggested documentation lines (as docstrings or comments), "
-        "not with explanations or code repeats.\n\n"
+        "Reply with the suggested documentation lines (as docstrings or comments) within the code, "
+        "not with explanations.\n\n"
         f"Code:\n{code}\n"
     )
 
@@ -84,7 +86,7 @@ def suggest_doc():
 
     payload = {
         "model": MODEL,
-        "max_tokens": 512,
+        "max_tokens": 1024,
         "system": system_prompt,
         "messages": [
             {"role": "user", "content": code}
@@ -101,6 +103,7 @@ def suggest_doc():
         input_tokens = usage.get("input_tokens")
         output_tokens = usage.get("output_tokens")
         total_tokens = (input_tokens or 0) + (output_tokens or 0)
+        print(f"Input tokens: {input_tokens}, Output tokens: {output_tokens}, Total tokens: {total_tokens}")
         return jsonify({"suggestion": suggestion})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -118,28 +121,24 @@ def add_doc():
     if not abs_path.startswith(REPO_ROOT):
         return jsonify({'error': 'Invalid path'}), 400
 
+    # Remove suggested start/end markers if present
+    suggestion = re.sub(r'# === DOCUWRITER SUGGESTED DOCUMENTATION START ===\n?', '', suggestion)
+    suggestion = re.sub(r'# === DOCUWRITER SUGGESTED DOCUMENTATION END ===\n?', '', suggestion)
+
     try:
         with open(abs_path, 'r', encoding='utf-8') as f:
             original = f.read()
 
-        # Highlight the documentation block
-        highlighted = (
-            "\n# === DOCUWRITER SUGGESTED DOCUMENTATION START ===\n"
-            f"{suggestion}\n"
-            "# === DOCUWRITER SUGGESTED DOCUMENTATION END ===\n"
-        )
-
-        # Find first function or class definition for Python files
+        # If Python file and suggestion is a mapping, use advanced placement
         if abs_path.endswith('.py'):
-            match = re.search(r'^(class |def )', original, re.MULTILINE)
-            if match:
-                idx = match.start()
-                updated = original[:idx] + highlighted + original[idx:]
-            else:
-                updated = highlighted + original
+            try:
+                # Expecting suggestion as JSON string mapping names to docstrings
+                suggestions = json.loads(suggestion)
+                updated = insert_docstrings(original, suggestions)
+            except Exception:
+                updated = suggestion + "\n" + original
         else:
-            # For other files, just prepend
-            updated = highlighted + original
+            updated = suggestion + "\n" + original
 
         with open(abs_path, 'w', encoding='utf-8') as f:
             f.write(updated)
@@ -257,6 +256,44 @@ def preview_doc():
         return jsonify({'preview': preview})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def insert_docstrings(original_code, suggestions):
+    """
+    original_code: str, the code of the file
+    suggestions: dict, mapping function/class names to docstring/comment
+    Returns: str, code with inserted docstrings/comments
+    """
+    try:
+        tree = ast.parse(original_code)
+        lines = original_code.splitlines()
+        # Offset for inserted lines
+        offset = 0
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                name = node.name
+                if name in suggestions:
+                    # Insert after the definition line
+                    def_line = node.lineno - 1 + offset
+                    docstring = suggestions[name]
+                    # Insert as a docstring (for Python)
+                    lines.insert(def_line + 1, f'    """{docstring}"""')
+                    offset += 1
+        return "\n".join(lines)
+    except Exception as e:
+        # Fallback: just prepend all suggestions
+        all_docs = "\n".join([f"# {v}" for v in suggestions.values()])
+        return f"{all_docs}\n{original_code}"
+
+def extract_function_code(code, name):
+    import ast
+    tree = ast.parse(code)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            start = node.lineno - 1
+            end = node.end_lineno if hasattr(node, 'end_lineno') else start + 1
+            return '\n'.join(code.splitlines()[start:end])
+    return ""
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <title>Repo Viewer</title>
     <style>
+        /* Main application styles - dark theme with monospace font */
         body { font-family: 'Fira Mono', monospace; margin: 0; background: #23272e; color: #eee; }
         .container { display: flex; height: 100vh; }
+        
+        /* Sidebar navigation for file tree */
         .sidebar {
             width: 260px;
             background: #181a20;
@@ -13,6 +16,8 @@
             overflow-y: auto;
             border-right: 1px solid #333;
         }
+        
+        /* File list styling */
         .file-list { list-style: none; padding: 0; margin: 0; }
         .file-list li {
             padding: 6px 24px;
@@ -22,11 +27,15 @@
         .file-list li:hover, .file-list li.selected {
             background: #2d313a;
         }
+        
+        /* Main content area for displaying file contents */
         .main {
             flex: 1;
             padding: 24px;
             overflow-y: auto;
         }
+        
+        /* Code block styling */
         pre {
             background: #181a20;
             color: #eee;
@@ -36,12 +45,55 @@
             overflow-x: auto;
             margin: 0;
         }
+        
+        /* Highlighted block for suggested documentation */
+        .suggested-block {
+            background: linear-gradient(90deg, #ffe066 80%, #fffbe6 100%);
+            color: #23272e;
+            border-left: 6px solid #f7b500;
+            box-shadow: 0 2px 8px rgba(247,181,0,0.08);
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: 'Fira Mono', monospace;
+            white-space: pre-wrap;
+            transition: background 0.3s;
+            animation: fadeIn 0.7s;
+        }
+        
+        /* Fade-in animation for suggested documentation */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Label for suggested documentation sections */
+        .suggested-label {
+            color: #f7b500;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        /* Original code styling with border */
+        pre.code-original {
+            background: #181a20;
+            color: #eee;
+            padding: 18px;
+            border-radius: 8px;
+            font-size: 15px;
+            overflow-x: auto;
+            margin: 0;
+            border: 1px solid #333;
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="sidebar">
-        <!-- Add above your file list -->
         <div style="padding: 16px;">
             <label for="repoPath">Repo path:</label>
             <input type="text" id="repoPath" value="" placeholder="/absolute/path/to/repo" style="width: 70%;">
@@ -53,7 +105,116 @@
     <div class="main">
         <h2 id="filename"></h2>
         <pre id="fileContent">// Select a file to view its contents</pre>
-        <!-- Add these buttons near your file viewer -->
+        <button id="previewBtn" style="margin-top:10px;">Preview Suggested Doc</button>
+        <button id="approveBtn
+# === DOCUWRITER SUGGESTED DOCUMENTATION END ===
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Repo Viewer</title>
+    <style>
+        /* Main application styles - dark theme with monospace font */
+        body { font-family: 'Fira Mono', monospace; margin: 0; background: #23272e; color: #eee; }
+        .container { display: flex; height: 100vh; }
+        
+        /* Sidebar navigation for file tree */
+        .sidebar {
+            width: 260px;
+            background: #181a20;
+            padding: 16px 0;
+            overflow-y: auto;
+            border-right: 1px solid #333;
+        }
+        
+        /* File list styling */
+        .file-list { list-style: none; padding: 0; margin: 0; }
+        .file-list li {
+            padding: 6px 24px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .file-list li:hover, .file-list li.selected {
+            background: #2d313a;
+        }
+        
+        /* Main content area for displaying file contents */
+        .main {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        /* Code block styling */
+        pre {
+            background: #181a20;
+            color: #eee;
+            padding: 18px;
+            border-radius: 8px;
+            font-size: 15px;
+            overflow-x: auto;
+            margin: 0;
+        }
+        
+        /* Highlighted block for suggested documentation */
+        .suggested-block {
+            background: linear-gradient(90deg, #ffe066 80%, #fffbe6 100%);
+            color: #23272e;
+            border-left: 6px solid #f7b500;
+            box-shadow: 0 2px 8px rgba(247,181,0,0.08);
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: 'Fira Mono', monospace;
+            white-space: pre-wrap;
+            transition: background 0.3s;
+            animation: fadeIn 0.7s;
+        }
+        
+        /* Fade-in animation for suggested documentation */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Label for suggested documentation sections */
+        .suggested-label {
+            color: #f7b500;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        /* Original code styling with border */
+        pre.code-original {
+            background: #181a20;
+            color: #eee;
+            padding: 18px;
+            border-radius: 8px;
+            font-size: 15px;
+            overflow-x: auto;
+            margin: 0;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <div style="padding: 16px;">
+            <label for="repoPath">Repo path:</label>
+            <input type="text" id="repoPath" value="" placeholder="/absolute/path/to/repo" style="width: 70%;">
+            <button onclick="setRepo()">Load Repo</button>
+            <button onclick="generateReadme()">Generate README</button>
+        </div>
+        <ul class="file-list" id="fileList"></ul>
+    </div>
+    <div class="main">
+        <h2 id="filename"></h2>
+        <pre id="fileContent">// Select a file to view its contents</pre>
         <button id="previewBtn" style="margin-top:10px;">Preview Suggested Doc</button>
         <button id="approveBtn" style="margin-top:10px;">Approve & Write</button>
         <div id="previewArea"></div>
@@ -76,7 +237,7 @@ async function generateReadme() {
     const data = await res.json();
     if (data.success) {
         alert("README.md generated!");
-        loadFileTree(); // Refresh file list to show README.md
+        loadFileTree();
     } else {
         alert("Error generating README: " + (data.error || "Unknown error"));
     }
@@ -103,7 +264,23 @@ document.getElementById('previewBtn').onclick = async function() {
         body: JSON.stringify({ path: lastFile, suggestion: lastSuggestion })
     });
     const data = await res.json();
-    document.getElementById('previewArea').innerHTML = data.preview || data.error;
+    if (data.preview) {
+        const start = data.preview.indexOf('// DOCUWRITER SUGGESTED DOCUMENTATION START //');
+        const end = data.preview.indexOf('// DOCUWRITER SUGGESTED DOCUMENTATION END //');
+        if (start !== -1 && end !== -1) {
+            const before = data.preview.slice(0, start);
+            const suggested = data.preview.slice(start, end + '// DOCUWRITER SUGGESTED DOCUMENTATION END //'.length);
+            const after = data.preview.slice(end + '// DOCUWRITER SUGGESTED DOCUMENTATION END //'.length);
+            document.getElementById('previewArea').innerHTML =
+                `<pre>${before}</pre>
+                 <div class="suggested-block">${suggested}</div>
+                 <pre>${after}</pre>`;
+        } else {
+            document.getElementById('previewArea').innerHTML = `<pre>${data.preview}</pre>`;
+        }
+    } else {
+        document.getElementById('previewArea').innerHTML = data.error;
+    }
 };
 
 document.getElementById('approveBtn').onclick = async function() {
@@ -122,7 +299,6 @@ document.getElementById('approveBtn').onclick = async function() {
     }
 };
 
-// Update selectFile to save lastFile and lastSuggestion
 async function selectFile(file, li) {
     document.querySelectorAll('#fileList li').forEach(el => el.classList.remove('selected'));
     li.classList.add('selected');
