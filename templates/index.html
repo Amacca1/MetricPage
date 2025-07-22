@@ -46,6 +46,7 @@
             <label for="repoPath">Repo path:</label>
             <input type="text" id="repoPath" value="" placeholder="/absolute/path/to/repo" style="width: 70%;">
             <button onclick="setRepo()">Load Repo</button>
+            <button onclick="generateReadme()">Generate README</button>
         </div>
         <ul class="file-list" id="fileList"></ul>
     </div>
@@ -60,6 +61,19 @@ let repoRoot = "";
 function setRepo() {
     repoRoot = document.getElementById('repoPath').value;
     loadFileTree();
+}
+
+async function generateReadme() {
+    const res = await fetch('/generate_readme', {
+        method: 'POST'
+    });
+    const data = await res.json();
+    if (data.success) {
+        alert("README.md generated and committed!");
+        loadFileTree(); // Refresh file list to show README.md
+    } else {
+        alert("Error generating README: " + (data.error || "Unknown error"));
+    }
 }
 
 async function loadFileTree() {
