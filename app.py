@@ -21,12 +21,14 @@ def index():
 @app.route('/filetree')
 def filetree():
     tree = []
+    ignore_dirs = {'venv', '.venv', '__pycache__', 'tests', 'migrations'}
     for root, dirs, files in os.walk(REPO_ROOT):
+        # Remove ignored directories from traversal
+        dirs[:] = [d for d in dirs if d not in ignore_dirs]
         rel_root = os.path.relpath(root, REPO_ROOT)
         for file in files:
-            if file.startswith('.'):
-                continue
-            tree.append(os.path.join(rel_root, file))
+            if file.endswith('.py') or file.endswith('.html'):
+                tree.append(os.path.join(rel_root, file))
     return jsonify(tree)
 
 @app.route('/filecontent')
