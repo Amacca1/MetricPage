@@ -53,10 +53,16 @@
     <div class="main">
         <h2 id="filename"></h2>
         <pre id="fileContent">// Select a file to view its contents</pre>
+        <!-- Add these buttons near your file viewer -->
+        <button id="previewBtn" style="margin-top:10px;">Preview Suggested Doc</button>
+        <button id="approveBtn" style="margin-top:10px;">Approve & Write</button>
+        <div id="previewArea"></div>
     </div>
 </div>
 <script>
 let repoRoot = "";
+let lastSuggestion = "";
+let lastFile = "";
 
 function setRepo() {
     repoRoot = document.getElementById('repoPath').value;
@@ -89,13 +95,57 @@ async function loadFileTree() {
     });
 }
 
+document.getElementById('previewBtn').onclick = async function() {
+    if (!lastFile || !lastSuggestion) return;
+    const res = await fetch('/preview_doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: lastFile, suggestion: lastSuggestion })
+    });
+    const data = await res.json();
+    document.getElementById('previewArea').innerHTML = data.preview || data.error;
+};
+
+document.getElementById('approveBtn').onclick = async function() {
+    if (!lastFile || !lastSuggestion) return;
+    const res = await fetch('/add_doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: lastFile, suggestion: lastSuggestion })
+    });
+    const data = await res.json();
+    if (data.success) {
+        alert("Documentation added!");
+        loadFileTree();
+    } else {
+        alert("Error: " + (data.error || "Unknown error"));
+    }
+};
+
+// Update selectFile to save lastFile and lastSuggestion
 async function selectFile(file, li) {
     document.querySelectorAll('#fileList li').forEach(el => el.classList.remove('selected'));
     li.classList.add('selected');
     document.getElementById('filename').textContent = file;
     const res = await fetch('/filecontent?root=' + encodeURIComponent(repoRoot) + '&path=' + encodeURIComponent(file));
     const data = await res.json();
-    document.getElementById('fileContent').textContent = data.content || data.error;
+    let content = data.content || data.error;
+
+    // Fetch documentation suggestion
+    const docRes = await fetch('/suggest_doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: file, code: content })
+    });
+    const docData = await docRes.json();
+    let suggestion = docData.suggestion || docData.error || '';
+
+    lastFile = file;
+    lastSuggestion = suggestion;
+
+    document.getElementById('fileContent').textContent =
+        suggestion ? `// Suggested documentation:\n${suggestion}\n\n${content}` : content;
+    document.getElementById('previewArea').innerHTML = ""; // Clear preview on file select
 }
 
 window.onload = () => {};

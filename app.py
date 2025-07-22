@@ -216,5 +216,47 @@ def generate_readme():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
+@app.route('/preview_doc', methods=['POST'])
+def preview_doc():
+    import re
+    data = request.get_json()
+    path = data.get("path")
+    suggestion = data.get("suggestion")
+
+    if not path or not suggestion:
+        return jsonify({'error': 'No file path or suggestion provided'}), 400
+
+    repo_root = request.args.get('root') or REPO_ROOT
+    abs_path = os.path.abspath(os.path.join(repo_root, path))
+    if not abs_path.startswith(repo_root):
+        return jsonify({'error': 'Invalid path'}), 400
+
+    try:
+        with open(abs_path, 'r', encoding='utf-8') as f:
+            original = f.read()
+
+        # Highlight block with HTML for preview
+        highlighted = (
+            "\n<span style='background-color: #ffe066; color: #23272e; display: block; padding: 8px; border-radius: 4px;'>"
+            "<b>// DOCUWRITER SUGGESTED DOCUMENTATION START //</b><br>"
+            f"{suggestion.replace('\n', '<br>')}"
+            "<br><b>// DOCUWRITER SUGGESTED DOCUMENTATION END //</b></span>\n"
+        )
+
+        # Insert above first function/class for Python, else prepend
+        if abs_path.endswith('.py'):
+            match = re.search(r'^(class |def )', original, re.MULTILINE)
+            if match:
+                idx = match.start()
+                preview = original[:idx] + highlighted + original[idx:]
+            else:
+                preview = highlighted + original
+        else:
+            preview = highlighted + original
+
+        return jsonify({'preview': preview})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
