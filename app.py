@@ -21,11 +21,12 @@ def index():
 
 @app.route('/filetree')
 def filetree():
+    repo_root = request.args.get('root') or REPO_ROOT
     tree = []
     ignore_dirs = {'venv', '.venv', '__pycache__', 'tests', 'migrations'}
-    for root, dirs, files in os.walk(REPO_ROOT):
+    for root, dirs, files in os.walk(repo_root):
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
-        rel_root = os.path.relpath(root, REPO_ROOT)
+        rel_root = os.path.relpath(root, repo_root)
         for file in files:
             if file.endswith('.py') or file.endswith('.html') or file == "README.md":
                 tree.append(os.path.join(rel_root, file))
@@ -33,11 +34,12 @@ def filetree():
 
 @app.route('/filecontent')
 def filecontent():
+    repo_root = request.args.get('root') or REPO_ROOT
     path = request.args.get('path')
     if not path:
         return jsonify({'error': 'No path provided'}), 400
-    abs_path = os.path.abspath(os.path.join(REPO_ROOT, path))
-    if not abs_path.startswith(REPO_ROOT):
+    abs_path = os.path.abspath(os.path.join(repo_root, path))
+    if not abs_path.startswith(repo_root):
         return jsonify({'error': 'Invalid path'}), 400
     try:
         with open(abs_path, 'r', encoding='utf-8') as f:
@@ -147,6 +149,7 @@ def add_doc():
 
 @app.route('/generate_readme', methods=['POST'])
 def generate_readme():
+    print("generate_readme endpoint called")
     # Gather all code files shown in the filetree
     tree = []
     ignore_dirs = {'venv', '.venv', '__pycache__', 'tests', 'migrations'}

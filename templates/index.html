@@ -41,6 +41,12 @@
 <body>
 <div class="container">
     <div class="sidebar">
+        <!-- Add above your file list -->
+        <div style="padding: 16px;">
+            <label for="repoPath">Repo path:</label>
+            <input type="text" id="repoPath" value="" placeholder="/absolute/path/to/repo" style="width: 70%;">
+            <button onclick="setRepo()">Load Repo</button>
+        </div>
         <ul class="file-list" id="fileList"></ul>
     </div>
     <div class="main">
@@ -49,8 +55,15 @@
     </div>
 </div>
 <script>
+let repoRoot = "";
+
+function setRepo() {
+    repoRoot = document.getElementById('repoPath').value;
+    loadFileTree();
+}
+
 async function loadFileTree() {
-    const res = await fetch('/filetree');
+    const res = await fetch('/filetree?root=' + encodeURIComponent(repoRoot));
     const files = await res.json();
     const fileList = document.getElementById('fileList');
     fileList.innerHTML = '';
@@ -63,28 +76,15 @@ async function loadFileTree() {
 }
 
 async function selectFile(file, li) {
-    document.querySelectorAll('.file-list li').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('#fileList li').forEach(el => el.classList.remove('selected'));
     li.classList.add('selected');
     document.getElementById('filename').textContent = file;
-    const res = await fetch('/filecontent?path=' + encodeURIComponent(file));
+    const res = await fetch('/filecontent?root=' + encodeURIComponent(repoRoot) + '&path=' + encodeURIComponent(file));
     const data = await res.json();
-    let content = data.content || data.error;
-
-    // Fetch documentation suggestion
-    const docRes = await fetch('/suggest_doc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: file, code: content })
-    });
-    const docData = await docRes.json();
-    let suggestion = docData.suggestion || docData.error || '';
-
-    // Show both file content and suggestion
-    document.getElementById('fileContent').textContent =
-        suggestion ? `// Suggested documentation:\n${suggestion}\n\n${content}` : content;
+    document.getElementById('fileContent').textContent = data.content || data.error;
 }
 
-window.onload = loadFileTree;
+window.onload = () => {};
 </script>
 </body>
 </html>
