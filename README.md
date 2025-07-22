@@ -1,55 +1,54 @@
 # DocuWriter
 
-A Flask-based web application that leverages the Anthropic AI API to automatically generate documentation for code files and entire projects.
+A Flask-based web application that leverages AI to automatically generate documentation for Python codebases. DocuWriter uses the Anthropic API to analyze code and suggest comprehensive documentation, including docstrings, inline comments, and README files.
 
-## Overview
+## Features
 
-DocuWriter is an intelligent documentation assistant that helps developers improve their codebase documentation. It provides an interactive web interface for browsing project files and automatically generating:
-- Inline comments and docstrings for individual files
-- Comprehensive README.md files for entire projects
+- **File Tree Explorer**: Browse Python files and HTML templates in your repository
+- **Code Viewer**: View source code directly in the web interface
+- **AI-Powered Documentation Suggestions**: Generate contextual docstrings and comments for any code file
+- **Automatic Documentation Insertion**: Add suggested documentation directly to source files with clear markers
+- **README Generator**: Automatically create comprehensive README.md files based on your entire codebase
+- **Git Integration**: Automatically commit generated README files to your repository
 
-## Key Features
+## Key Endpoints
 
-- **File Tree Explorer**: Browse Python and HTML files in your project with an intuitive web interface
-- **AI-Powered Documentation Suggestions**: Generate contextual documentation suggestions for any code file using Anthropic's Claude model
-- **Automatic Documentation Insertion**: Add suggested documentation directly into source files with proper formatting and markers
-- **README Generation**: Automatically create project README files by analyzing the entire codebase
-- **Git Integration**: Automatically commits generated README files to your repository
-
-## Technical Architecture
-
-The application is built with:
-- **Flask**: Web framework for the backend API
-- **Anthropic API**: AI model for generating documentation
-- **Environment Variables**: Secure configuration management via `.env` file
-
-### API Endpoints
-
-- `GET /`: Serves the main web interface
-- `GET /filetree`: Returns JSON list of project files
-- `GET /filecontent`: Retrieves content of a specific file
-- `POST /suggest_doc`: Generates documentation suggestions for a given file
-- `POST /add_doc`: Inserts documentation into source files
-- `POST /generate_readme`: Creates a comprehensive README.md for the project
+- `/` - Main web interface
+- `/filetree` - Returns JSON list of Python and HTML files in the repository
+- `/filecontent` - Retrieves content of a specific file
+- `/suggest_doc` - Generates documentation suggestions for a given code file
+- `/add_doc` - Inserts suggested documentation into source files
+- `/generate_readme` - Creates a README.md file analyzing the entire codebase
 
 ## Configuration
 
-The application requires the following environment variables:
-- `ANTHROPIC_API_KEY`: Your Anthropic API key
-- `ANTHROPIC_API_URL`: API endpoint URL
-- `MODEL`: The AI model to use (e.g., Claude)
-- `VERSION`: API version
+The application requires the following environment variables (set in `.env`):
+
+- `ANTHROPIC_API_KEY` - Your Anthropic API key
+- `ANTHROPIC_API_URL` - Anthropic API endpoint URL
+- `MODEL` - The AI model to use (e.g., claude-3)
+- `VERSION` - API version string
 
 ## Usage
 
 1. Set up your environment variables in a `.env` file
 2. Run the Flask application: `python app.py`
-3. Open the web interface at `http://localhost:5000`
-4. Browse files and click to generate documentation suggestions
-5. Apply suggestions or generate a project README with one click
+3. Navigate to `http://localhost:5000` in your browser
+4. Browse files, generate documentation suggestions, and create README files with a single click
 
 ## Security Features
 
-- Path traversal protection for file access
-- Configurable ignore directories (venv, __pycache__, etc.)
-- Secure API key management through environment variables
+- Path traversal protection ensures files can only be accessed within the repository root
+- Configurable ignore directories (venv, __pycache__, tests, migrations)
+- Safe file writing with clear documentation markers
+
+## Documentation Markers
+
+When documentation is added to files, it's wrapped in clear markers:
+```
+# === DOCUWRITER SUGGESTED DOCUMENTATION START ===
+[Generated documentation]
+# === DOCUWRITER SUGGESTED DOCUMENTATION END ===
+```
+
+This makes it easy to identify and manage AI-generated documentation in your codebase.
