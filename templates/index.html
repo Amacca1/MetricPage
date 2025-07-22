@@ -64,12 +64,12 @@ function setRepo() {
 }
 
 async function generateReadme() {
-    const res = await fetch('/generate_readme', {
+    const res = await fetch('/generate_readme?root=' + encodeURIComponent(repoRoot), {
         method: 'POST'
     });
     const data = await res.json();
     if (data.success) {
-        alert("README.md generated and committed!");
+        alert("README.md generated!");
         loadFileTree(); // Refresh file list to show README.md
     } else {
         alert("Error generating README: " + (data.error || "Unknown error"));
