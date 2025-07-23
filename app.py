@@ -20,7 +20,6 @@ def get_github_repos(username):
     return [repo["name"] for repo in resp.json()]
 
 def get_git_log_summary(username, repo_name, token):
-    # Use GitHub API to get commit logs instead of local git
     url = f"https://api.github.com/repos/{username}/{repo_name}/commits?per_page=50"
     headers = {"Authorization": f"token {token}"}
     resp = requests.get(url, headers=headers)
@@ -50,12 +49,15 @@ def get_git_log_summary(username, repo_name, token):
         system="You are an expert AI agent summarizing git logs for a human reader.",
         messages=[{"role": "user", "content": prompt}]
     )
+    # Print token usage for debugging
     usage = getattr(response, "usage", None)
     input_tokens = getattr(usage, "input_tokens", None) if usage else None
     output_tokens = getattr(usage, "output_tokens", None) if usage else None
     total_tokens = (input_tokens or 0) + (output_tokens or 0)
     print(f"Input tokens: {input_tokens}, Output tokens: {output_tokens}, Total tokens: {total_tokens}")
-    return str(response.content)
+    # Get the summary text from the response
+    summary_text = response.content if isinstance(response.content, str) else response.content[0].text if hasattr(response.content[0], "text") else str(response.content[0])
+    return summary_text
 
 @app.route('/')
 def index():

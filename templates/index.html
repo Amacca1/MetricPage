@@ -4,7 +4,7 @@
     <title>GitHub Repo Log Summarizer</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', 'Fira Mono', monospace;
             background: #f4f6f8;
             margin: 0;
             padding: 0;
@@ -38,16 +38,45 @@
         button:hover {
             background: #0056b3;
         }
-        .summary-card {
-            background: #f9fafb;
-            border-left: 4px solid #007bff;
-            padding: 16px;
+        .summary-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-radius: 18px;
+            padding: 18px 24px;
             margin-top: 24px;
-            border-radius: 4px;
             font-size: 16px;
+            font-family: 'Fira Mono', 'Consolas', 'Monaco', monospace;
+            box-shadow: 0 4px 16px rgba(102,126,234,0.08);
             white-space: pre-wrap;
+            word-break: break-word;
+            max-width: 90%;
+        }
+        .summary-bubble code, .summary-bubble pre {
+            background: #222;
+            color: #f8f8f2;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 8px 0 0 0;
+            font-size: 0.97em;
+            display: block;
+            font-family: 'Fira Mono', 'Consolas', 'Monaco', monospace;
+        }
+        .summary-bubble h1, .summary-bubble h2, .summary-bubble h3 {
+            color: #fff;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+        .summary-bubble ul {
+            margin: 12px 0 12px 24px;
+        }
+        .summary-bubble li {
+            margin-bottom: 6px;
+        }
+        .summary-bubble strong {
+            color: #ffd700;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         async function loadRepos() {
             const username = document.getElementById('username').value;
@@ -67,17 +96,23 @@
             });
         }
 
+        function formatSummary(text) {
+            // Use marked.js to convert markdown to HTML
+            return marked.parse(text);
+        }
+
         async function summarizeLogs() {
             const username = document.getElementById('username').value;
             const repoName = document.getElementById('repoSelect').value;
-            document.getElementById('summary').innerHTML = "<em>Summarizing...</em>";
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.innerHTML = "<div class='summary-bubble'><em>Summarizing...</em></div>";
             const response = await fetch('/summarize_logs', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({username, repo_name: repoName})
             });
             const data = await response.json();
-            document.getElementById('summary').innerText = data.summary;
+            summaryDiv.innerHTML = `<div class="summary-bubble">${formatSummary(data.summary)}</div>`;
         }
     </script>
 </head>
