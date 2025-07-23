@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitHub Repo Log Summarizer</title>
+    <script>
+        async function loadRepos() {
+            const username = document.getElementById('username').value;
+            const response = await fetch('/get_repos', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username})
+            });
+            const data = await response.json();
+            const repoSelect = document.getElementById('repoSelect');
+            repoSelect.innerHTML = '';
+            data.repos.forEach(repo => {
+                const option = document.createElement('option');
+                option.value = repo;
+                option.text = repo;
+                repoSelect.appendChild(option);
+            });
+        }
+
+        async function summarizeLogs() {
+            const username = document.getElementById('username').value;
+            const repoName = document.getElementById('repoSelect').value;
+            document.getElementById('summary').innerText = "Summarizing...";
+            const response = await fetch('/summarize_logs', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, repo_name: repoName})
+            });
+            const data = await response.json();
+            document.getElementById('summary').innerText = data.summary || data.error;
+        }
+    </script>
+</head>
+<body>
+    <h1>GitHub Repo Log Summarizer</h1>
+    <label for="username">GitHub Username:</label>
+    <input type="text" id="username" />
+    <button onclick="loadRepos()">Load Repos</button>
+    <br><br>
+    <label for="repoSelect">Select a repository:</label>
+    <select id="repoSelect"></select>
+    <button onclick="summarizeLogs()">Summarize Logs</button>
+    <h2>Summary:</h2>
+    <pre id="summary"></pre>
+</body>
+</html>
