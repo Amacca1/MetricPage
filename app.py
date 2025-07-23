@@ -19,32 +19,33 @@ def get_github_repos(username):
         return []
     return [repo["name"] for repo in resp.json()]
 
-def clone_repo(username, repo_name):
-    repo_path = os.path.join(REPO_BASE, repo_name)
-    if not os.path.exists(REPO_BASE):
-        os.makedirs(REPO_BASE)
-    if not os.path.isdir(repo_path):
-        repo_url = f"https://github.com/{username}/{repo_name}.git"
-        subprocess.run(["git", "clone", repo_url, repo_path])
-    return repo_path
-
-def get_git_log_summary(repo_path):
-    try:
-        logs = subprocess.check_output(
-            ["git", "-C", repo_path, "log", "--pretty=format:%h %an %ad %s", "--date=short", "--no-merges"],
-            universal_newlines=True
-        )
-    except Exception as e:
-        return f"Error retrieving git logs: {e}"
+def get_git_log_summary(username, repo_name, token):
+    # Use GitHub API to get commit logs instead of local git
+    url = f"https://api.github.com/repos/{username}/{repo_name}/commits?per_page=50"
+    headers = {"Authorization": f"token {token}"}
+    resp = requests.get(url, headers=headers)
+    if resp.status_code != 200:
+        return f"Error retrieving commit logs: {resp.status_code} - {resp.text}"
+    commits = resp.json()
+    logs = []
+    for commit in commits:
+        sha = commit["sha"][:7]
+        author = commit["commit"]["author"]["name"]
+        date = commit["commit"]["author"]["date"][:10]
+        message = commit["commit"]["message"].replace('\n', ' ')
+        logs.append(f"{sha} {author} {date} {message}")
+    logs_text = "\n".join(logs)
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompt = (
-        "Summarize the following git commit logs in a human-readable way, focusing on key changes and their impact:\n\n"
-        f"{logs}\n\nSummary:"
+        "Summarize the following git commit logs for a non-technical reader. "
+        "Use clear language, bullet points, and highlight the most important changes and their impact. "
+        "Make the summary easy to comprehend and visually organized:\n\n"
+        f"{logs_text}\n\nSummary:"
     )
     response = client.messages.create(
         model="claude-opus-4-20250514",
-        max_tokens=300,
+        max_tokens=1024,
         temperature=0.5,
         system="You are an expert AI agent summarizing git logs for a human reader.",
         messages=[{"role": "user", "content": prompt}]
@@ -74,8 +75,7 @@ def summarize_logs():
     repo_name = data.get("repo_name")
     if not username or not repo_name:
         return jsonify({"error": "Missing username or repo name"}), 400
-    repo_path = clone_repo(username, repo_name)
-    summary = get_git_log_summary(repo_path)
+    summary = get_git_log_summary(username, repo_name, GITHUB_TOKEN)
     return jsonify({"summary": summary})
 
 if __name__ == "__main__":

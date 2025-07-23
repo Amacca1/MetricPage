@@ -77,7 +77,7 @@
                 body: JSON.stringify({username, repo_name: repoName})
             });
             const data = await response.json();
-            document.getElementById('summary').innerHTML = `<div class="summary-card">${data.summary || data.error}</div>`;
+            document.getElementById('summary').innerText = data.summary;
         }
     </script>
 </head>
