@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 import anthropic
+from dotenv import load_dotenv
 import os
 import subprocess
 import requests
@@ -48,7 +49,12 @@ def get_git_log_summary(repo_path):
         system="You are an expert AI agent summarizing git logs for a human reader.",
         messages=[{"role": "user", "content": prompt}]
     )
-    return str(response.content)  # <-- Ensure it's a string
+    usage = getattr(response, "usage", None)
+    input_tokens = getattr(usage, "input_tokens", None) if usage else None
+    output_tokens = getattr(usage, "output_tokens", None) if usage else None
+    total_tokens = (input_tokens or 0) + (output_tokens or 0)
+    print(f"Input tokens: {input_tokens}, Output tokens: {output_tokens}, Total tokens: {total_tokens}")
+    return str(response.content)
 
 @app.route('/')
 def index():
@@ -66,12 +72,6 @@ def summarize_logs():
     data = request.get_json()
     username = data.get("username")
     repo_name = data.get("repo_name")
-    resp_json = response.json()
-    usage = resp_json.get("usage", {})
-    input_tokens = usage.get("input_tokens")
-    output_tokens = usage.get("output_tokens")
-    total_tokens = (input_tokens or 0) + (output_tokens or 0)
-    print(f"Input tokens: {input_tokens}, Output tokens: {output_tokens}, Total tokens: {total_tokens}")
     if not username or not repo_name:
         return jsonify({"error": "Missing username or repo name"}), 400
     repo_path = clone_repo(username, repo_name)

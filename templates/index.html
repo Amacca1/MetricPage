@@ -2,6 +2,52 @@
 <html>
 <head>
     <title>GitHub Repo Log Summarizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 32px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        label, select, input, button {
+            display: block;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+        button {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .summary-card {
+            background: #f9fafb;
+            border-left: 4px solid #007bff;
+            padding: 16px;
+            margin-top: 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            white-space: pre-wrap;
+        }
+    </style>
     <script>
         async function loadRepos() {
             const username = document.getElementById('username').value;
@@ -24,27 +70,27 @@
         async function summarizeLogs() {
             const username = document.getElementById('username').value;
             const repoName = document.getElementById('repoSelect').value;
-            document.getElementById('summary').innerText = "Summarizing...";
+            document.getElementById('summary').innerHTML = "<em>Summarizing...</em>";
             const response = await fetch('/summarize_logs', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({username, repo_name: repoName})
             });
             const data = await response.json();
-            document.getElementById('summary').innerText = data.summary || data.error;
+            document.getElementById('summary').innerHTML = `<div class="summary-card">${data.summary || data.error}</div>`;
         }
     </script>
 </head>
 <body>
-    <h1>GitHub Repo Log Summarizer</h1>
-    <label for="username">GitHub Username:</label>
-    <input type="text" id="username" />
-    <button onclick="loadRepos()">Load Repos</button>
-    <br><br>
-    <label for="repoSelect">Select a repository:</label>
-    <select id="repoSelect"></select>
-    <button onclick="summarizeLogs()">Summarize Logs</button>
-    <h2>Summary:</h2>
-    <pre id="summary"></pre>
+    <div class="container">
+        <h1>GitHub Repo Log Summarizer</h1>
+        <label for="username">GitHub Username:</label>
+        <input type="text" id="username" placeholder="Enter GitHub username" />
+        <button onclick="loadRepos()">Load Repos</button>
+        <label for="repoSelect">Select a repository:</label>
+        <select id="repoSelect"></select>
+        <button onclick="summarizeLogs()">Summarize Logs</button>
+        <div id="summary"></div>
+    </div>
 </body>
 </html>
