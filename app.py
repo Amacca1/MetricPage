@@ -75,7 +75,7 @@ def extract_functions(code):
     tree = ast.parse(code)
     return [node for node in tree.body if isinstance(node, ast.FunctionDef)]
 
-def call_claude(function_code):
+def call_claude(function_code,prompt):
     url = "https://api.anthropic.com/v1/messages"
     headers = {
         "x-api-key": ANTHROPIC_API_KEY,
@@ -84,8 +84,11 @@ def call_claude(function_code):
         "content-type": "application/json"
     }
     prompt = (
-        "Write a logical, non-trivial pytest test function for the following Python function. "
-        "Do not simply echo the function or use trivial asserts. include all necessary imports. "
+        "Given the following Python function, write a logical, non-trivial pytest test function for it. "
+        "Do not simply echo the function or use trivial asserts. "
+        "Include all necessary imports. "
+        "IMPORTANT: At the top of your test code, add 'from module import {func_name}'. "
+        "Only call the function by its correct name. "
         "Only return the test code, nothing else.\n\n"
         f"{function_code}"
     )
@@ -117,7 +120,16 @@ def generate_tests():
     tests = []
     for func in functions:
         func_code = ast.unparse(func)
-        test_code, input_tokens, output_tokens = call_claude(func_code)
+        prompt = (
+            "Given the following Python function, write a logical, non-trivial pytest test function for it. "
+            "Do not simply echo the function or use trivial asserts. "
+            "Include all necessary imports. "
+            f"IMPORTANT: At the top of your test code, add 'from module import {func.name}'. "
+            "Only call the function by its correct name. "
+            "Only return the test code, nothing else.\n\n"
+            f"{func_code}"
+        )
+        test_code, input_tokens, output_tokens = call_claude(func_code, prompt)
         # Remove markdown/code block formatting and non-code text
         test_code = re.sub(r"^```python|^```|```$", "", test_code, flags=re.MULTILINE).strip()
         # Ensure import pytest is present
