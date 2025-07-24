@@ -5,6 +5,7 @@ import tempfile
 import subprocess
 from dotenv import load_dotenv
 import ast
+import re
 
 load_dotenv()
 app = Flask(__name__)
@@ -61,7 +62,6 @@ def extract_functions(code):
     return [node for node in tree.body if isinstance(node, ast.FunctionDef)]
 
 def call_claude(function_code):
-    # Call Claude API to generate tests for the function
     url = "https://api.anthropic.com/v1/messages"
     headers = {
         "x-api-key": ANTHROPIC_API_KEY,
@@ -72,23 +72,29 @@ def call_claude(function_code):
     prompt = (
         "Write a logical, non-trivial pytest test function for the following Python function. "
         "Do not simply echo the function or use trivial asserts. include all necessary imports. "
-        "The test should cover edge cases and be well-structured. "
         "Only return the test code, nothing else.\n\n"
         f"{function_code}"
     )
     data = {
         "model": MODEL,
-        "max_tokens": 512,
+        "max_tokens": 1024,
         "messages": [{"role": "user", "content": prompt}]
     }
     r = requests.post(url, headers=headers, json=data)
     if r.status_code != 200:
-        return "# Claude API error"
-    return r.json()['content'][0]['text']
+        return "# Claude API error", 0, 0
+    response = r.json()
+    response_text = response['content'][0]['text']
+
+    # Use exact token counts from API response
+    usage = response.get("usage", {})
+    input_tokens = usage.get("input_tokens", 0)
+    output_tokens = usage.get("output_tokens", 0)
+
+    return response_text, input_tokens, output_tokens
 
 @app.route('/generate_tests', methods=['POST'])
 def generate_tests():
-    import re
     data = request.json
     code = data.get('code')
     if not code:
@@ -97,13 +103,19 @@ def generate_tests():
     tests = []
     for func in functions:
         func_code = ast.unparse(func)
-        test_code = call_claude(func_code)
+        test_code, input_tokens, output_tokens = call_claude(func_code)
         # Remove markdown/code block formatting and non-code text
         test_code = re.sub(r"^```python|^```|```$", "", test_code, flags=re.MULTILINE).strip()
         # Ensure import pytest is present
         if "import pytest" not in test_code:
             test_code = "import pytest\n" + test_code
-        tests.append({'function': func.name, 'test_code': test_code})
+        tests.append({
+            'function': func.name,
+            'function_code': func_code,
+            'test_code': test_code,
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens
+        })
     return jsonify({'tests': tests})
 
 @app.route('/run_test', methods=['POST'])
@@ -113,6 +125,14 @@ def run_test():
     test_code = data.get('test_code')
     if not code or not test_code:
         return jsonify({'error': 'Missing code or test_code'}), 400
+
+    # Validate test_code syntax before running
+    try:
+        compile(test_code, "<test_code>", "exec")
+    except SyntaxError as e:
+        return jsonify({'output': f"SyntaxError in generated test code: {e}"}), 200
+
+    import tempfile, os, subprocess
     with tempfile.TemporaryDirectory() as tmpdir:
         code_path = os.path.join(tmpdir, "module.py")
         test_path = os.path.join(tmpdir, "test_module.py")
@@ -120,6 +140,18 @@ def run_test():
             f.write(code)
         with open(test_path, "w") as f:
             f.write("import module\n" + test_code)
+
+        # --- MOCK FILE CREATION LOGIC ---
+        # Look for open("filename", ...) or open('filename', ...)
+        file_matches = re.findall(r'open\(["\']([^"\']+)["\']', test_code)
+        for filename in set(file_matches):
+            # Only create files with safe names (no directories)
+            if os.path.sep not in filename and filename not in ("module.py", "test_module.py"):
+                file_path = os.path.join(tmpdir, filename)
+                with open(file_path, "w") as mockf:
+                    mockf.write("dummy content\n")
+        # --- END MOCK FILE CREATION ---
+
         try:
             result = subprocess.run(
                 ["pytest", test_path, "-v", "--tb=short", "--disable-warnings"],
