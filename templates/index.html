@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GitHub Claude Test Generator</title>
+    <style>
+        body { font-family: monospace; background: #23272e; color: #eee; }
+        input, button, select, textarea { font-family: monospace; }
+        .container { max-width: 900px; margin: 40px auto; background: #2c313a; padding: 24px; border-radius: 8px; }
+        .section { margin-bottom: 2em; }
+        textarea { width: 100%; min-height: 120px; background: #181a20; color: #eee; border: 1px solid #444; }
+        pre { background: #181a20; color: #eee; padding: 12px; border-radius: 6px; }
+        .func-block { border: 1px solid #444; border-radius: 6px; margin-bottom: 1.5em; padding: 1em; background: #23272e; }
+        .func-title { font-weight: bold; color: #7fd7ff; }
+        .token-info { color: #b5bd68; font-size: 0.95em; }
+        .run-btn { margin-top: 0.5em; }
+        .output { margin-top: 0.5em; background: #181a20; color: #eee; padding: 8px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>GitHub Claude Test Generator</h1>
+    <div class="section">
+        <label>GitHub Username: <input id="username" /></label>
+        <button onclick="loadRepos()">List Repos</button>
+        <select id="repoSelect" onchange="loadBranches()"></select>
+        <select id="branchSelect" onchange="loadFiles()"></select>
+        <select id="fileSelect" onchange="loadFileContent()"></select>
+    </div>
+    <div class="section">
+        <h3>Python File Content</h3>
+        <textarea id="fileContent" readonly></textarea>
+        <button onclick="generateTests()">Generate Tests with Claude</button>
+    </div>
+    <div class="section" id="testsSection">
+        <h3>Generated Tests (per function)</h3>
+        <div id="testsContainer"></div>
+    </div>
+</div>
+<script>
+async function loadRepos() {
+    const username = document.getElementById('username').value;
+    const res = await fetch(`/repos?username=${encodeURIComponent(username)}`);
+    const data = await res.json();
+    const repoSelect = document.getElementById('repoSelect');
+    repoSelect.innerHTML = '';
+    if (data.repos) {
+        data.repos.forEach(repo => {
+            const opt = document.createElement('option');
+            opt.value = repo;
+            opt.textContent = repo;
+            repoSelect.appendChild(opt);
+        });
+        loadBranches();
+    }
+}
+
+async function loadBranches() {
+    const username = document.getElementById('username').value;
+    const repo = document.getElementById('repoSelect').value;
+    const res = await fetch(`/branches?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}`);
+    const data = await res.json();
+    const branchSelect = document.getElementById('branchSelect');
+    branchSelect.innerHTML = '';
+    if (data.branches) {
+        data.branches.forEach(branch => {
+            const opt = document.createElement('option');
+            opt.value = branch;
+            opt.textContent = branch;
+            branchSelect.appendChild(opt);
+        });
+        loadFiles();
+    }
+}
+
+async function loadFiles() {
+    const username = document.getElementById('username').value;
+    const repo = document.getElementById('repoSelect').value;
+    const branch = document.getElementById('branchSelect').value;
+    const res = await fetch(`/repo_files?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}`);
+    const data = await res.json();
+    const fileSelect = document.getElementById('fileSelect');
+    fileSelect.innerHTML = '';
+    if (data.files) {
+        data.files.forEach(file => {
+            const opt = document.createElement('option');
+            opt.value = file;
+            opt.textContent = file;
+            fileSelect.appendChild(opt);
+        });
+        loadFileContent();
+    }
+}
+
+async function loadFileContent() {
+    const username = document.getElementById('username').value;
+    const repo = document.getElementById('repoSelect').value;
+    const branch = document.getElementById('branchSelect').value;
+    const path = document.getElementById('fileSelect').value;
+    const res = await fetch(`/file_content?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`);
+    const data = await res.json();
+    document.getElementById('fileContent').value = data.content || '';
+    document.getElementById('testsContainer').innerHTML = '';
+}
+async function generateTests() {
+    const code = document.getElementById('fileContent').value;
+    if (!code) return;
+    document.getElementById('testsContainer').innerHTML = 'Generating tests...';
+    const res = await fetch('/generate_tests', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code})
+    });
+    const data = await res.json();
+    const container = document.getElementById('testsContainer');
+    container.innerHTML = '';
+    if (data.tests && data.tests.length > 0) {
+        data.tests.forEach((t, idx) => {
+            const block = document.createElement('div');
+            block.className = 'func-block';
+            block.innerHTML = `
+                <div class="func-title">Function: <span>${t.function}</span></div>
+                <div class="token-info">Input tokens: ${t.input_tokens}, Output tokens: ${t.output_tokens}</div>
+                <details>
+                  <summary>Show function code</summary>
+                  <pre>${escapeHtml(t.function_code)}</pre>
+                </details>
+                <details open>
+                  <summary>Show generated test</summary>
+                  <textarea id="testCode${idx}" style="min-height:80px">${t.test_code}</textarea>
+                </details>
+                <button class="run-btn" onclick="runTest(${idx})">Run Test</button>
+                <div class="output" id="testOutput${idx}"></div>
+            `;
+            container.appendChild(block);
+        });
+    } else {
+        container.innerHTML = data.error || 'No tests generated.';
+    }
+}
+async function runTest(idx) {
+    const code = document.getElementById('fileContent').value;
+    const test_code = document.getElementById(`testCode${idx}`).value;
+    const outputDiv = document.getElementById(`testOutput${idx}`);
+    if (!code || !test_code) return;
+    outputDiv.textContent = 'Running...';
+    const res = await fetch('/run_test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code, test_code})
+    });
+    const data = await res.json();
+    outputDiv.textContent = data.output || data.error || '';
+}
+function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, function(m) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[m];
+    });
+}
+</script>
+</body>
+</html>
