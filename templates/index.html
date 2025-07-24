@@ -23,7 +23,8 @@
     <div class="section">
         <label>GitHub Username: <input id="username" /></label>
         <button onclick="loadRepos()">List Repos</button>
-        <select id="repoSelect" onchange="loadFiles()"></select>
+        <select id="repoSelect" onchange="loadBranches()"></select>
+        <select id="branchSelect" onchange="loadFiles()"></select>
         <select id="fileSelect" onchange="loadFileContent()"></select>
     </div>
     <div class="section">
@@ -50,13 +51,33 @@ async function loadRepos() {
             opt.textContent = repo;
             repoSelect.appendChild(opt);
         });
+        loadBranches();
+    }
+}
+
+async function loadBranches() {
+    const username = document.getElementById('username').value;
+    const repo = document.getElementById('repoSelect').value;
+    const res = await fetch(`/branches?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}`);
+    const data = await res.json();
+    const branchSelect = document.getElementById('branchSelect');
+    branchSelect.innerHTML = '';
+    if (data.branches) {
+        data.branches.forEach(branch => {
+            const opt = document.createElement('option');
+            opt.value = branch;
+            opt.textContent = branch;
+            branchSelect.appendChild(opt);
+        });
         loadFiles();
     }
 }
+
 async function loadFiles() {
     const username = document.getElementById('username').value;
     const repo = document.getElementById('repoSelect').value;
-    const res = await fetch(`/repo_files?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}`);
+    const branch = document.getElementById('branchSelect').value;
+    const res = await fetch(`/repo_files?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}`);
     const data = await res.json();
     const fileSelect = document.getElementById('fileSelect');
     fileSelect.innerHTML = '';
@@ -70,11 +91,13 @@ async function loadFiles() {
         loadFileContent();
     }
 }
+
 async function loadFileContent() {
     const username = document.getElementById('username').value;
     const repo = document.getElementById('repoSelect').value;
+    const branch = document.getElementById('branchSelect').value;
     const path = document.getElementById('fileSelect').value;
-    const res = await fetch(`/file_content?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`);
+    const res = await fetch(`/file_content?username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`);
     const data = await res.json();
     document.getElementById('fileContent').value = data.content || '';
     document.getElementById('testsContainer').innerHTML = '';

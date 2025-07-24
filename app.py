@@ -31,13 +31,26 @@ def list_repos():
     repos = [repo['name'] for repo in r.json()]
     return jsonify({'repos': repos})
 
-@app.route('/repo_files')
-def repo_files():
+@app.route('/branches')
+def list_branches():
     username = request.args.get('username')
     repo = request.args.get('repo')
     if not username or not repo:
         return jsonify({'error': 'Missing params'}), 400
-    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents")
+    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/branches")
+    if r.status_code != 200:
+        return jsonify({'error': 'GitHub error'}), 500
+    branches = [b['name'] for b in r.json()]
+    return jsonify({'branches': branches})
+
+@app.route('/repo_files')
+def repo_files():
+    username = request.args.get('username')
+    repo = request.args.get('repo')
+    branch = request.args.get('branch', 'main')
+    if not username or not repo:
+        return jsonify({'error': 'Missing params'}), 400
+    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents", params={'ref': branch})
     if r.status_code != 200:
         return jsonify({'error': 'GitHub error'}), 500
     py_files = [f['path'] for f in r.json() if f['name'].endswith('.py')]
@@ -48,9 +61,10 @@ def file_content():
     username = request.args.get('username')
     repo = request.args.get('repo')
     path = request.args.get('path')
+    branch = request.args.get('branch', 'main')
     if not username or not repo or not path:
         return jsonify({'error': 'Missing params'}), 400
-    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}")
+    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}", params={'ref': branch})
     if r.status_code != 200:
         return jsonify({'error': 'GitHub error'}), 500
     import base64
