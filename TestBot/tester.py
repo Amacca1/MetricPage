@@ -18,7 +18,7 @@ VERSION = os.getenv("VERSION")
 
 @tester_bp.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('testpage.html')
 
 @tester_bp.route('/repos')
 def list_repos():

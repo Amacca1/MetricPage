@@ -19,7 +19,7 @@ REPO_ROOT = os.path.abspath(os.path.dirname(__file__))
 
 @docuwriter_bp.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('writerpage.html')
 
 @docuwriter_bp.route('/filetree')
 def filetree():
