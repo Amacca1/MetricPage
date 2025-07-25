@@ -162,6 +162,7 @@ def generate_readme():
     username = data.get('username')
     repo = data.get('repo')
     branch = data.get('branch', 'main')
+    write_to_repo = data.get('write_to_repo', False)  # New option to write to repo
     
     if not username or not repo:
         return jsonify({'error': 'Missing username or repo'}), 400
@@ -244,11 +245,72 @@ def generate_readme():
         response.raise_for_status()
         resp_json = response.json()
         readme_content = resp_json["content"][0]["text"]
-        return jsonify({"success": True, "readme": readme_content})
+        
+        # If write_to_repo is True, write the README to the repository
+        if write_to_repo:
+            if not GITHUB_TOKEN:
+                return jsonify({"error": "GitHub token required to write to repository"}), 400
+            
+            write_result = write_readme_to_repo(username, repo, branch, readme_content, headers)
+            if write_result.get('success'):
+                return jsonify({
+                    "success": True, 
+                    "readme": readme_content,
+                    "written_to_repo": True,
+                    "commit_sha": write_result.get('commit_sha')
+                })
+            else:
+                return jsonify({
+                    "success": True, 
+                    "readme": readme_content,
+                    "written_to_repo": False,
+                    "write_error": write_result.get('error')
+                })
+        
+        return jsonify({"success": True, "readme": readme_content, "written_to_repo": False})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 # Helper functions for documentation processing
+def write_readme_to_repo(username, repo, branch, readme_content, headers):
+    """
+    Write README content to a GitHub repository
+    """
+    # First, check if README.md already exists
+    readme_url = f"{GITHUB_API}/repos/{username}/{repo}/contents/README.md"
+    params = {'ref': branch}
+    
+    existing_readme = requests.get(readme_url, headers=headers, params=params)
+    
+    # Prepare the content for GitHub API (must be base64 encoded)
+    encoded_content = base64.b64encode(readme_content.encode('utf-8')).decode('utf-8')
+    
+    # Prepare the commit data
+    commit_data = {
+        "message": "Auto-generated README.md using Docuwriter",
+        "content": encoded_content,
+        "branch": branch
+    }
+    
+    # If README already exists, we need to include the SHA for updating
+    if existing_readme.status_code == 200:
+        commit_data["sha"] = existing_readme.json()["sha"]
+        commit_message = "Updated README.md using Docuwriter"
+    else:
+        commit_message = "Created README.md using Docuwriter"
+    
+    commit_data["message"] = commit_message
+    
+    # Make the API call to create/update the file
+    try:
+        response = requests.put(readme_url, json=commit_data, headers=headers)
+        if response.status_code in [200, 201]:
+            return {"success": True, "commit_sha": response.json().get("commit", {}).get("sha")}
+        else:
+            return {"success": False, "error": f"GitHub API error: {response.status_code} - {response.text}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 def insert_docstrings(original_code, suggestions):
     """
     original_code: str, the code of the file

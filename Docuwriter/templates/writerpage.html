@@ -131,7 +131,14 @@
             </select>
             
             <button id="loadFilesBtn" onclick="loadFiles()" style="display:none;">Load Files</button>
-            <button id="generateReadmeBtn" onclick="generateReadme()" style="display:none;">Generate README</button>
+            
+            <div id="readmeControls" style="display:none; margin-top: 8px;">
+                <label style="display: flex; align-items: center; margin-bottom: 8px; color: #eee; font-size: 14px;">
+                    <input type="checkbox" id="writeToRepoCheckbox" style="margin-right: 8px;">
+                    Write README to repository (requires GitHub token)
+                </label>
+                <button id="generateReadmeBtn" onclick="generateReadme()" style="width: 100%;">Generate README</button>
+            </div>
         </div>
         <ul class="file-list" id="fileList"></ul>
     </div>
@@ -209,7 +216,7 @@
                 currentRepo.branch = branchSelect.value;
                 if (currentRepo.branch) {
                     document.getElementById('loadFilesBtn').style.display = 'block';
-                    document.getElementById('generateReadmeBtn').style.display = 'block';
+                    document.getElementById('readmeControls').style.display = 'block';
                 }
             };
             
@@ -220,12 +227,12 @@
                 branchSelect.value = 'main';
                 currentRepo.branch = 'main';
                 document.getElementById('loadFilesBtn').style.display = 'block';
-                document.getElementById('generateReadmeBtn').style.display = 'block';
+                document.getElementById('readmeControls').style.display = 'block';
             } else if (data.branches.includes('master')) {
                 branchSelect.value = 'master';
                 currentRepo.branch = 'master';
                 document.getElementById('loadFilesBtn').style.display = 'block';
-                document.getElementById('generateReadmeBtn').style.display = 'block';
+                document.getElementById('readmeControls').style.display = 'block';
             }
             
         } catch (error) {
@@ -330,6 +337,8 @@
             return;
         }
 
+        const writeToRepo = document.getElementById('writeToRepoCheckbox').checked;
+
         try {
             const response = await fetch('/writer/generate_readme', {
                 method: 'POST',
@@ -337,7 +346,8 @@
                 body: JSON.stringify({
                     username: currentRepo.username,
                     repo: currentRepo.repo,
-                    branch: currentRepo.branch
+                    branch: currentRepo.branch,
+                    write_to_repo: writeToRepo
                 })
             });
             
@@ -352,6 +362,13 @@
             document.getElementById('fileContent').textContent = data.readme;
             document.getElementById('suggestBtn').style.display = 'none';
             document.getElementById('suggestion').style.display = 'none';
+            
+            // Show success message if written to repo
+            if (data.written_to_repo) {
+                alert('README.md successfully written to repository!');
+            } else if (writeToRepo && data.write_error) {
+                alert('README generated but failed to write to repository: ' + data.write_error);
+            }
             
         } catch (error) {
             alert('Error generating README: ' + error.message);
