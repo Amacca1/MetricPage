@@ -7,34 +7,152 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background: #f8f9fa; }
-        .container { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #0001; }
-        h1 { text-align: center; margin-bottom: 40px; }
-        .apps { display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; }
-        .app-card {
-            flex: 1 1 200px;
-            min-width: 220px;
-            max-width: 300px;
-            background: #f1f3f6;
-            border-radius: 8px;
-            padding: 24px 18px;
-            box-shadow: 0 1px 4px #0001;
-            text-align: center;
-            transition: box-shadow 0.2s;
+        .container { max-width: 1400px; margin: 20px auto; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 30px; color: #333; }
+        
+        /* Tab navigation */
+        .tab-nav {
+            display: flex;
+            background: #fff;
+            border-radius: 10px 10px 0 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 0;
         }
-        .app-card:hover { box-shadow: 0 4px 16px #0002; }
-        .app-card h2 { margin-top: 0; }
-        .app-card a {
-            display: inline-block;
-            margin-top: 18px;
-            padding: 8px 20px;
-            background: #007bff;
-            color: #fff;
-            border-radius: 4px;
-            text-decoration: none;
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
             font-weight: bold;
-            transition: background 0.2s;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
         }
-        .app-card a:hover { background: #0056b3; }
+        
+        .tab-button.active {
+            background: #007bff;
+            color: white;
+            border-bottom-color: #0056b3;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background: #e9ecef;
+        }
+        
+        /* Tab content */
+        .tab-content {
+            display: none;
+            background: #fff;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+            min-height: 600px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* App-specific styles */
+        .app-section {
+            max-width: 100%;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn.secondary {
+            background: #6c757d;
+        }
+        
+        .btn.secondary:hover {
+            background: #5a6268;
+        }
+        
+        .file-list {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .file-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        
+        .file-item:hover {
+            background: #e9ecef;
+        }
+        
+        .file-item.selected {
+            background: #007bff;
+            color: white;
+        }
+        
+        .content-display {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .results {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
         
         /* Chatbot Widget Styles */
         .chat-widget {
@@ -135,21 +253,124 @@
 <body>
     <div class="container">
         <h1>MetricPage Dashboard</h1>
-        <div class="apps">
-            <div class="app-card">
+        
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-button active" onclick="showTab('logger')">Agent Logger</button>
+            <button class="tab-button" onclick="showTab('docuwriter')">Docuwriter</button>
+            <button class="tab-button" onclick="showTab('tester')">TestBot</button>
+        </div>
+        
+        <!-- Agent Logger Tab -->
+        <div id="logger" class="tab-content active">
+            <div class="app-section">
                 <h2>Agent Logger</h2>
-                <p>View and manage agent logs and activities.</p>
-                <a href="{{ url_for('logger.index') }}">Open Agent Logger</a>
+                <p>View and manage agent logs and activities from GitHub repositories.</p>
+                
+                <div class="form-group">
+                    <label for="loggerUsername">GitHub Username:</label>
+                    <input type="text" id="loggerUsername" placeholder="Enter GitHub username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="loggerRepo">Repository:</label>
+                    <select id="loggerRepo" style="display:none;">
+                        <option value="">Select repository...</option>
+                    </select>
+                </div>
+                
+                <button class="btn" onclick="loadLoggerRepos()">Load Repositories</button>
+                <button class="btn secondary" onclick="summarizeLogs()" id="summarizeBtn" style="display:none;">Summarize Logs</button>
+                
+                <div id="loggerResults" class="results" style="display:none;"></div>
             </div>
-            <div class="app-card">
-                <h2>Docuwriter</h2>
-                <p>Generate and preview documentation for your codebase.</p>
-                <a href="{{ url_for('docuwriter.index') }}">Open Docuwriter</a>
+        </div>
+        
+        <!-- Docuwriter Tab -->
+        <div id="docuwriter" class="tab-content">
+            <div class="app-section">
+                <h2>GitHub Repository Docuwriter</h2>
+                <p>Generate and preview documentation for your GitHub repositories.</p>
+                
+                <div class="two-column">
+                    <div>
+                        <div class="form-group">
+                            <label for="docUsername">GitHub Username:</label>
+                            <input type="text" id="docUsername" placeholder="Enter GitHub username">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="docRepo">Repository:</label>
+                            <select id="docRepo" style="display:none;">
+                                <option value="">Select repository...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="docBranch">Branch:</label>
+                            <select id="docBranch" style="display:none;">
+                                <option value="">Select branch...</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn" onclick="loadDocRepos()">Load Repositories</button>
+                        <button class="btn secondary" onclick="loadDocFiles()" id="loadDocFilesBtn" style="display:none;">Load Files</button>
+                        <button class="btn secondary" onclick="generateDocReadme()" id="generateDocReadmeBtn" style="display:none;">Generate README</button>
+                        
+                        <div id="docFileList" class="file-list" style="display:none;"></div>
+                    </div>
+                    
+                    <div>
+                        <h4 id="docFilename">Select a file to view its contents</h4>
+                        <div id="docFileContent" class="content-display">Choose a GitHub repository and file to get started</div>
+                        <button class="btn" onclick="suggestDocumentation()" id="suggestDocBtn" style="display:none;">Suggest Documentation</button>
+                        <div id="docSuggestion" class="results" style="display:none;"></div>
+                    </div>
+                </div>
             </div>
-            <div class="app-card">
-                <h2>TestBot</h2>
-                <p>Browse repos, branches, and run code tests.</p>
-                <a href="{{ url_for('tester.index') }}">Open TestBot</a>
+        </div>
+        
+        <!-- TestBot Tab -->
+        <div id="tester" class="tab-content">
+            <div class="app-section">
+                <h2>TestBot - Code Testing</h2>
+                <p>Browse GitHub repositories, generate tests, and run them.</p>
+                
+                <div class="two-column">
+                    <div>
+                        <div class="form-group">
+                            <label for="testUsername">GitHub Username:</label>
+                            <input type="text" id="testUsername" placeholder="Enter GitHub username">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="testRepo">Repository:</label>
+                            <select id="testRepo" style="display:none;">
+                                <option value="">Select repository...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="testBranch">Branch:</label>
+                            <select id="testBranch" style="display:none;">
+                                <option value="">Select branch...</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn" onclick="loadTestRepos()">Load Repositories</button>
+                        <button class="btn secondary" onclick="loadTestFiles()" id="loadTestFilesBtn" style="display:none;">Load Python Files</button>
+                        
+                        <div id="testFileList" class="file-list" style="display:none;"></div>
+                    </div>
+                    
+                    <div>
+                        <h4 id="testFilename">Select a Python file to generate tests</h4>
+                        <div id="testFileContent" class="content-display">Choose a GitHub repository and Python file to get started</div>
+                        <button class="btn" onclick="generateTests()" id="generateTestsBtn" style="display:none;">Generate Tests</button>
+                        <button class="btn secondary" onclick="runTests()" id="runTestsBtn" style="display:none;">Run Tests</button>
+                        <div id="testResults" class="results" style="display:none;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -178,6 +399,24 @@
             { role: "assistant", content: "Hello! I'm your AI assistant. How can I help you today?" }
         ];
 
+        // Tab switching functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab and mark button as active
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Chat functionality
         function toggleChat() {
             const widget = document.getElementById('chatWidget');
             const toggle = document.querySelector('.chat-toggle');
@@ -257,6 +496,510 @@
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
         });
+
+        // Agent Logger Functions
+        async function loadLoggerRepos() {
+            const username = document.getElementById('loggerUsername').value;
+            if (!username) {
+                alert('Please enter a GitHub username');
+                return;
+            }
+
+            try {
+                const response = await fetch('/logger/get_repos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const repoSelect = document.getElementById('loggerRepo');
+                repoSelect.innerHTML = '<option value="">Select repository...</option>';
+                data.repos.forEach(repo => {
+                    const option = document.createElement('option');
+                    option.value = repo;
+                    option.textContent = repo;
+                    repoSelect.appendChild(option);
+                });
+                
+                repoSelect.style.display = 'block';
+                document.getElementById('summarizeBtn').style.display = 'inline-block';
+            } catch (error) {
+                alert('Error loading repositories: ' + error.message);
+            }
+        }
+
+        async function summarizeLogs() {
+            const username = document.getElementById('loggerUsername').value;
+            const repo = document.getElementById('loggerRepo').value;
+            
+            if (!username || !repo) {
+                alert('Please select a username and repository');
+                return;
+            }
+
+            try {
+                const response = await fetch('/logger/summarize_logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, repo_name: repo })
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                document.getElementById('loggerResults').innerHTML = `<h4>Commit Log Summary:</h4><pre>${data.summary}</pre>`;
+                document.getElementById('loggerResults').style.display = 'block';
+            } catch (error) {
+                alert('Error summarizing logs: ' + error.message);
+            }
+        }
+
+        // Docuwriter Functions
+        let currentDocRepo = { username: '', repo: '', branch: 'main' };
+        let currentDocFile = '';
+        let currentDocContent = '';
+
+        async function loadDocRepos() {
+            const username = document.getElementById('docUsername').value;
+            if (!username) {
+                alert('Please enter a GitHub username');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/writer/repos?username=${username}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const repoSelect = document.getElementById('docRepo');
+                repoSelect.innerHTML = '<option value="">Select repository...</option>';
+                data.repos.forEach(repo => {
+                    const option = document.createElement('option');
+                    option.value = repo;
+                    option.textContent = repo;
+                    repoSelect.appendChild(option);
+                });
+                
+                repoSelect.style.display = 'block';
+                repoSelect.onchange = loadDocBranches;
+                currentDocRepo.username = username;
+            } catch (error) {
+                alert('Error loading repositories: ' + error.message);
+            }
+        }
+
+        async function loadDocBranches() {
+            const repo = document.getElementById('docRepo').value;
+            if (!repo) return;
+
+            try {
+                const response = await fetch(`/writer/branches?username=${currentDocRepo.username}&repo=${repo}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const branchSelect = document.getElementById('docBranch');
+                branchSelect.innerHTML = '<option value="">Select branch...</option>';
+                data.branches.forEach(branch => {
+                    const option = document.createElement('option');
+                    option.value = branch;
+                    option.textContent = branch;
+                    branchSelect.appendChild(option);
+                });
+                
+                branchSelect.style.display = 'block';
+                branchSelect.onchange = () => {
+                    currentDocRepo.branch = branchSelect.value;
+                    if (currentDocRepo.branch) {
+                        document.getElementById('loadDocFilesBtn').style.display = 'inline-block';
+                        document.getElementById('generateDocReadmeBtn').style.display = 'inline-block';
+                    }
+                };
+                
+                currentDocRepo.repo = repo;
+                
+                // Auto-select main/master branch if available
+                if (data.branches.includes('main')) {
+                    branchSelect.value = 'main';
+                    currentDocRepo.branch = 'main';
+                    document.getElementById('loadDocFilesBtn').style.display = 'inline-block';
+                    document.getElementById('generateDocReadmeBtn').style.display = 'inline-block';
+                } else if (data.branches.includes('master')) {
+                    branchSelect.value = 'master';
+                    currentDocRepo.branch = 'master';
+                    document.getElementById('loadDocFilesBtn').style.display = 'inline-block';
+                    document.getElementById('generateDocReadmeBtn').style.display = 'inline-block';
+                }
+                
+            } catch (error) {
+                alert('Error loading branches: ' + error.message);
+            }
+        }
+
+        async function loadDocFiles() {
+            if (!currentDocRepo.username || !currentDocRepo.repo || !currentDocRepo.branch) {
+                alert('Please select a repository and branch first');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/writer/filetree?username=${currentDocRepo.username}&repo=${currentDocRepo.repo}&branch=${currentDocRepo.branch}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const fileList = document.getElementById('docFileList');
+                fileList.innerHTML = '';
+                
+                data.forEach(file => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    div.textContent = file;
+                    div.onclick = () => loadDocFileContent(file);
+                    fileList.appendChild(div);
+                });
+                
+                fileList.style.display = 'block';
+                
+            } catch (error) {
+                alert('Error loading files: ' + error.message);
+            }
+        }
+
+        async function loadDocFileContent(path) {
+            try {
+                const response = await fetch(`/writer/filecontent?username=${currentDocRepo.username}&repo=${currentDocRepo.repo}&path=${path}&branch=${currentDocRepo.branch}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                document.getElementById('docFilename').textContent = path;
+                document.getElementById('docFileContent').textContent = data.content;
+                document.getElementById('suggestDocBtn').style.display = 'inline-block';
+                document.getElementById('docSuggestion').style.display = 'none';
+                
+                // Update selected file in list
+                document.querySelectorAll('#docFileList .file-item').forEach(item => item.classList.remove('selected'));
+                event.target.classList.add('selected');
+                
+                currentDocFile = path;
+                currentDocContent = data.content;
+                
+            } catch (error) {
+                alert('Error loading file content: ' + error.message);
+            }
+        }
+
+        async function suggestDocumentation() {
+            if (!currentDocContent) {
+                alert('Please select a file first');
+                return;
+            }
+
+            try {
+                const response = await fetch('/writer/suggest_doc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: currentDocContent })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                document.getElementById('docSuggestion').innerHTML = `
+                    <h4>Suggested Documentation:</h4>
+                    <pre>${data.suggestion}</pre>
+                `;
+                document.getElementById('docSuggestion').style.display = 'block';
+                
+            } catch (error) {
+                alert('Error getting documentation suggestion: ' + error.message);
+            }
+        }
+
+        async function generateDocReadme() {
+            if (!currentDocRepo.username || !currentDocRepo.repo || !currentDocRepo.branch) {
+                alert('Please select a repository and branch first');
+                return;
+            }
+
+            try {
+                const response = await fetch('/writer/generate_readme', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentDocRepo.username,
+                        repo: currentDocRepo.repo,
+                        branch: currentDocRepo.branch
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                document.getElementById('docFilename').textContent = 'Generated README.md';
+                document.getElementById('docFileContent').textContent = data.readme;
+                document.getElementById('suggestDocBtn').style.display = 'none';
+                document.getElementById('docSuggestion').style.display = 'none';
+                
+            } catch (error) {
+                alert('Error generating README: ' + error.message);
+            }
+        }
+
+        // TestBot Functions
+        let currentTestRepo = { username: '', repo: '', branch: 'main' };
+        let currentTestFile = '';
+        let currentTestContent = '';
+        let generatedTests = [];
+
+        async function loadTestRepos() {
+            const username = document.getElementById('testUsername').value;
+            if (!username) {
+                alert('Please enter a GitHub username');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/tester/repos?username=${username}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const repoSelect = document.getElementById('testRepo');
+                repoSelect.innerHTML = '<option value="">Select repository...</option>';
+                data.repos.forEach(repo => {
+                    const option = document.createElement('option');
+                    option.value = repo;
+                    option.textContent = repo;
+                    repoSelect.appendChild(option);
+                });
+                
+                repoSelect.style.display = 'block';
+                repoSelect.onchange = loadTestBranches;
+                currentTestRepo.username = username;
+            } catch (error) {
+                alert('Error loading repositories: ' + error.message);
+            }
+        }
+
+        async function loadTestBranches() {
+            const repo = document.getElementById('testRepo').value;
+            if (!repo) return;
+
+            try {
+                const response = await fetch(`/tester/branches?username=${currentTestRepo.username}&repo=${repo}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const branchSelect = document.getElementById('testBranch');
+                branchSelect.innerHTML = '<option value="">Select branch...</option>';
+                data.branches.forEach(branch => {
+                    const option = document.createElement('option');
+                    option.value = branch;
+                    option.textContent = branch;
+                    branchSelect.appendChild(option);
+                });
+                
+                branchSelect.style.display = 'block';
+                branchSelect.onchange = () => {
+                    currentTestRepo.branch = branchSelect.value;
+                    if (currentTestRepo.branch) {
+                        document.getElementById('loadTestFilesBtn').style.display = 'inline-block';
+                    }
+                };
+                
+                currentTestRepo.repo = repo;
+                
+                // Auto-select main/master branch if available
+                if (data.branches.includes('main')) {
+                    branchSelect.value = 'main';
+                    currentTestRepo.branch = 'main';
+                    document.getElementById('loadTestFilesBtn').style.display = 'inline-block';
+                } else if (data.branches.includes('master')) {
+                    branchSelect.value = 'master';
+                    currentTestRepo.branch = 'master';
+                    document.getElementById('loadTestFilesBtn').style.display = 'inline-block';
+                }
+                
+            } catch (error) {
+                alert('Error loading branches: ' + error.message);
+            }
+        }
+
+        async function loadTestFiles() {
+            if (!currentTestRepo.username || !currentTestRepo.repo || !currentTestRepo.branch) {
+                alert('Please select a repository and branch first');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/tester/repo_files?username=${currentTestRepo.username}&repo=${currentTestRepo.repo}&branch=${currentTestRepo.branch}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const fileList = document.getElementById('testFileList');
+                fileList.innerHTML = '';
+                
+                data.files.forEach(file => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    div.textContent = file;
+                    div.onclick = () => loadTestFileContent(file);
+                    fileList.appendChild(div);
+                });
+                
+                fileList.style.display = 'block';
+                
+            } catch (error) {
+                alert('Error loading files: ' + error.message);
+            }
+        }
+
+        async function loadTestFileContent(path) {
+            try {
+                const response = await fetch(`/tester/file_content?username=${currentTestRepo.username}&repo=${currentTestRepo.repo}&path=${path}&branch=${currentTestRepo.branch}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                document.getElementById('testFilename').textContent = path;
+                document.getElementById('testFileContent').textContent = data.content;
+                document.getElementById('generateTestsBtn').style.display = 'inline-block';
+                document.getElementById('testResults').style.display = 'none';
+                
+                // Update selected file in list
+                document.querySelectorAll('#testFileList .file-item').forEach(item => item.classList.remove('selected'));
+                event.target.classList.add('selected');
+                
+                currentTestFile = path;
+                currentTestContent = data.content;
+                
+            } catch (error) {
+                alert('Error loading file content: ' + error.message);
+            }
+        }
+
+        async function generateTests() {
+            if (!currentTestContent) {
+                alert('Please select a Python file first');
+                return;
+            }
+
+            try {
+                const response = await fetch('/tester/generate_tests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: currentTestContent })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                generatedTests = data.tests;
+                let testsHtml = '<h4>Generated Tests:</h4>';
+                
+                data.tests.forEach((test, index) => {
+                    testsHtml += `
+                        <div style="margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                            <h5>Test for function: ${test.function}</h5>
+                            <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px;">${test.test_code}</pre>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('testResults').innerHTML = testsHtml;
+                document.getElementById('testResults').style.display = 'block';
+                document.getElementById('runTestsBtn').style.display = 'inline-block';
+                
+            } catch (error) {
+                alert('Error generating tests: ' + error.message);
+            }
+        }
+
+        async function runTests() {
+            if (!generatedTests.length) {
+                alert('Please generate tests first');
+                return;
+            }
+
+            try {
+                let allResults = '<h4>Test Results:</h4>';
+                
+                for (let test of generatedTests) {
+                    const response = await fetch('/tester/run_test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            code: currentTestContent,
+                            test_code: test.test_code 
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    allResults += `
+                        <div style="margin-bottom: 15px; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                            <h5>Test for function: ${test.function}</h5>
+                            <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px;">${data.output}</pre>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('testResults').innerHTML = allResults;
+                
+            } catch (error) {
+                alert('Error running tests: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>
