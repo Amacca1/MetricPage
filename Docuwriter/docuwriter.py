@@ -34,7 +34,7 @@ def list_repos():
     
     r = requests.get(f"{GITHUB_API}/users/{username}/repos", headers=headers)
     if r.status_code != 200:
-        return jsonify({'error': 'GitHub error'}), 500
+        return jsonify({'error': 'GitHub error', 'status_code': r.status_code, 'response': r.text}), 500
     repos = [repo['name'] for repo in r.json()]
     return jsonify({'repos': repos})
 

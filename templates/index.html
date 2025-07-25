@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MetricPage Dashboard</title>
+    <!-- Cache busting comment: v1.0.1 -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background: #f8f9fa; }
@@ -162,6 +163,40 @@
             overflow-y: auto;
         }
         
+        /* Loading Indicator Styles */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
         /* Chatbot Widget Styles */
         .chat-widget {
             position: fixed;
@@ -256,6 +291,60 @@
             color: #666;
             font-style: italic;
         }
+        
+        /* Loading indicator styles */
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: #007bff;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .loading.show {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 0 10px 10px;
+            z-index: 100;
+        }
+        
+        .loading-overlay.show {
+            display: flex;
+        }
+        
+        .loading-overlay .loading-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -289,6 +378,11 @@
                 
                 <button class="btn" onclick="loadLoggerRepos()">Load Repositories</button>
                 <button class="btn secondary" onclick="summarizeLogs()" id="summarizeBtn" style="display:none;">Summarize Logs</button>
+                
+                <div id="loggerLoading" class="loading">
+                    <div class="spinner"></div>
+                    Loading...
+                </div>
                 
                 <div id="loggerResults" class="results" style="display:none;"></div>
             </div>
@@ -326,6 +420,11 @@
                         <button class="btn secondary" onclick="generateDocReadme()" id="generateDocReadmeBtn" style="display:none;">Generate README</button>
                         <button class="btn success" onclick="writeReadmeToRepo()" id="writeReadmeBtn" style="display:none;">📝 Write README to Repo</button>
                         
+                        <div id="docLoading" class="loading">
+                            <div class="spinner"></div>
+                            Loading...
+                        </div>
+                        
                         <div id="docFileList" class="file-list" style="display:none;"></div>
                     </div>
                     
@@ -333,6 +432,12 @@
                         <h4 id="docFilename">Select a file to view its contents</h4>
                         <div id="docFileContent" class="content-display">Choose a GitHub repository and file to get started</div>
                         <button class="btn" onclick="suggestDocumentation()" id="suggestDocBtn" style="display:none;">Suggest Documentation</button>
+                        
+                        <div id="docRightLoading" class="loading">
+                            <div class="spinner"></div>
+                            Processing...
+                        </div>
+                        
                         <div id="docSuggestion" class="results" style="display:none;"></div>
                     </div>
                 </div>
@@ -369,6 +474,11 @@
                         <button class="btn" onclick="loadTestRepos()">Load Repositories</button>
                         <button class="btn secondary" onclick="loadTestFiles()" id="loadTestFilesBtn" style="display:none;">Load Python Files</button>
                         
+                        <div id="testLoading" class="loading">
+                            <div class="spinner"></div>
+                            Loading...
+                        </div>
+                        
                         <div id="testFileList" class="file-list" style="display:none;"></div>
                     </div>
                     
@@ -377,6 +487,12 @@
                         <div id="testFileContent" class="content-display">Choose a GitHub repository and Python file to get started</div>
                         <button class="btn" onclick="generateTests()" id="generateTestsBtn" style="display:none;">Generate Tests</button>
                         <button class="btn secondary" onclick="runTests()" id="runTestsBtn" style="display:none;">Run Tests</button>
+                        
+                        <div id="testRightLoading" class="loading">
+                            <div class="spinner"></div>
+                            Processing...
+                        </div>
+                        
                         <div id="testResults" class="results" style="display:none;"></div>
                     </div>
                 </div>
@@ -514,6 +630,10 @@
                 return;
             }
 
+            // Show loading indicator
+            document.getElementById('loggerLoading').classList.add('show');
+            document.getElementById('loggerResults').style.display = 'none';
+
             try {
                 const response = await fetch('/logger/get_repos', {
                     method: 'POST',
@@ -540,6 +660,9 @@
                 document.getElementById('summarizeBtn').style.display = 'inline-block';
             } catch (error) {
                 alert('Error loading repositories: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('loggerLoading').classList.remove('show');
             }
         }
 
@@ -551,6 +674,10 @@
                 alert('Please select a username and repository');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('loggerLoading').classList.add('show');
+            document.getElementById('loggerResults').style.display = 'none';
 
             try {
                 const response = await fetch('/logger/summarize_logs', {
@@ -569,6 +696,9 @@
                 document.getElementById('loggerResults').style.display = 'block';
             } catch (error) {
                 alert('Error summarizing logs: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('loggerLoading').classList.remove('show');
             }
         }
 
@@ -583,6 +713,9 @@
                 alert('Please enter a GitHub username');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('docLoading').classList.add('show');
 
             try {
                 const response = await fetch(`/writer/repos?username=${username}`);
@@ -607,12 +740,18 @@
                 currentDocRepo.username = username;
             } catch (error) {
                 alert('Error loading repositories: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('docLoading').classList.remove('show');
             }
         }
 
         async function loadDocBranches() {
             const repo = document.getElementById('docRepo').value;
             if (!repo) return;
+
+            // Show loading indicator
+            document.getElementById('docLoading').classList.add('show');
 
             try {
                 const response = await fetch(`/writer/branches?username=${currentDocRepo.username}&repo=${repo}`);
@@ -658,6 +797,9 @@
                 
             } catch (error) {
                 alert('Error loading branches: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('docLoading').classList.remove('show');
             }
         }
 
@@ -666,6 +808,10 @@
                 alert('Please select a repository and branch first');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('docLoading').classList.add('show');
+            document.getElementById('docFileList').style.display = 'none';
 
             try {
                 const response = await fetch(`/writer/filetree?username=${currentDocRepo.username}&repo=${currentDocRepo.repo}&branch=${currentDocRepo.branch}`);
@@ -691,10 +837,17 @@
                 
             } catch (error) {
                 alert('Error loading files: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('docLoading').classList.remove('show');
             }
         }
 
         async function loadDocFileContent(path) {
+            // Show loading indicator
+            document.getElementById('docRightLoading').classList.add('show');
+            document.getElementById('docSuggestion').style.display = 'none';
+            
             try {
                 const response = await fetch(`/writer/filecontent?username=${currentDocRepo.username}&repo=${currentDocRepo.repo}&path=${path}&branch=${currentDocRepo.branch}`);
                 const data = await response.json();
@@ -707,7 +860,6 @@
                 document.getElementById('docFilename').textContent = path;
                 document.getElementById('docFileContent').textContent = data.content;
                 document.getElementById('suggestDocBtn').style.display = 'inline-block';
-                document.getElementById('docSuggestion').style.display = 'none';
                 document.getElementById('writeReadmeBtn').style.display = 'none'; // Hide write button when viewing files
                 
                 // Update selected file in list
@@ -719,6 +871,9 @@
                 
             } catch (error) {
                 alert('Error loading file content: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('docRightLoading').classList.remove('show');
             }
         }
 
@@ -727,6 +882,10 @@
                 alert('Please select a file first');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('docRightLoading').classList.add('show');
+            document.getElementById('docSuggestion').style.display = 'none';
 
             try {
                 const response = await fetch('/writer/suggest_doc', {
@@ -750,6 +909,9 @@
                 
             } catch (error) {
                 alert('Error getting documentation suggestion: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('docRightLoading').classList.remove('show');
             }
         }
 
@@ -758,6 +920,10 @@
                 alert('Please select a repository and branch first');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('docRightLoading').classList.add('show');
+            document.getElementById('docSuggestion').style.display = 'none';
 
             try {
                 const response = await fetch('/writer/generate_readme', {
@@ -781,13 +947,15 @@
                 document.getElementById('docFilename').textContent = 'Generated README.md (Preview)';
                 document.getElementById('docFileContent').textContent = data.readme;
                 document.getElementById('suggestDocBtn').style.display = 'none';
-                document.getElementById('docSuggestion').style.display = 'none';
                 
                 // Show the write button after successful generation
                 document.getElementById('writeReadmeBtn').style.display = 'inline-block';
                 
             } catch (error) {
                 alert('Error generating README: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('docRightLoading').classList.remove('show');
             }
         }
 
@@ -809,6 +977,9 @@
             if (!confirm('Are you sure you want to write this README to the repository? This will create or update the README.md file.')) {
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('docRightLoading').classList.add('show');
 
             try {
                 const response = await fetch('/writer/generate_readme', {
@@ -850,6 +1021,9 @@
                 
             } catch (error) {
                 alert('Error writing README: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('docRightLoading').classList.remove('show');
             }
         }
 
@@ -865,6 +1039,9 @@
                 alert('Please enter a GitHub username');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('testLoading').classList.add('show');
 
             try {
                 const response = await fetch(`/tester/repos?username=${username}`);
@@ -889,12 +1066,18 @@
                 currentTestRepo.username = username;
             } catch (error) {
                 alert('Error loading repositories: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('testLoading').classList.remove('show');
             }
         }
 
         async function loadTestBranches() {
             const repo = document.getElementById('testRepo').value;
             if (!repo) return;
+
+            // Show loading indicator
+            document.getElementById('testLoading').classList.add('show');
 
             try {
                 const response = await fetch(`/tester/branches?username=${currentTestRepo.username}&repo=${repo}`);
@@ -937,6 +1120,9 @@
                 
             } catch (error) {
                 alert('Error loading branches: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('testLoading').classList.remove('show');
             }
         }
 
@@ -945,6 +1131,10 @@
                 alert('Please select a repository and branch first');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('testLoading').classList.add('show');
+            document.getElementById('testFileList').style.display = 'none';
 
             try {
                 const response = await fetch(`/tester/repo_files?username=${currentTestRepo.username}&repo=${currentTestRepo.repo}&branch=${currentTestRepo.branch}`);
@@ -962,7 +1152,7 @@
                     const div = document.createElement('div');
                     div.className = 'file-item';
                     div.textContent = file;
-                    div.onclick = () => loadTestFileContent(file);
+                    div.onclick = (event) => loadTestFileContent(event, file);
                     fileList.appendChild(div);
                 });
                 
@@ -970,12 +1160,29 @@
                 
             } catch (error) {
                 alert('Error loading files: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('testLoading').classList.remove('show');
             }
         }
 
-        async function loadTestFileContent(path) {
+        async function loadTestFileContent(event, path) {
+            // Debugging: log parameters to console
+            console.log('loadTestFileContent called with:', { event, path });
+            
+            // Ensure we have a valid path
+            if (!path || typeof path !== 'string') {
+                console.error('Invalid path parameter:', path);
+                alert('Error: Invalid file path');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('testRightLoading').classList.add('show');
+            document.getElementById('testResults').style.display = 'none';
+
             try {
-                const response = await fetch(`/tester/file_content?username=${currentTestRepo.username}&repo=${currentTestRepo.repo}&path=${path}&branch=${currentTestRepo.branch}`);
+                const response = await fetch(`/tester/file_content?username=${currentTestRepo.username}&repo=${currentTestRepo.repo}&path=${encodeURIComponent(path)}&branch=${currentTestRepo.branch}`);
                 const data = await response.json();
                 
                 if (data.error) {
@@ -997,6 +1204,9 @@
                 
             } catch (error) {
                 alert('Error loading file content: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('testRightLoading').classList.remove('show');
             }
         }
 
@@ -1005,6 +1215,10 @@
                 alert('Please select a Python file first');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('testRightLoading').classList.add('show');
+            document.getElementById('testResults').style.display = 'none';
 
             try {
                 const response = await fetch('/tester/generate_tests', {
@@ -1038,6 +1252,9 @@
                 
             } catch (error) {
                 alert('Error generating tests: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('testRightLoading').classList.remove('show');
             }
         }
 
@@ -1046,6 +1263,9 @@
                 alert('Please generate tests first');
                 return;
             }
+
+            // Show loading indicator
+            document.getElementById('testRightLoading').classList.add('show');
 
             try {
                 let allResults = '<h4>Test Results:</h4>';
@@ -1074,6 +1294,9 @@
                 
             } catch (error) {
                 alert('Error running tests: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('testRightLoading').classList.remove('show');
             }
         }
     </script>

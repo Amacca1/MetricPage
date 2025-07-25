@@ -11,10 +11,38 @@ load_dotenv()
 tester_bp = Blueprint('tester', __name__, template_folder='templates')
 
 GITHUB_API = "https://api.github.com"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
 MODEL = os.getenv("MODEL")
 VERSION = os.getenv("VERSION")
+
+def get_github_headers():
+    """Get headers for GitHub API requests with authentication"""
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "MetricPage-TestBot/1.0"
+    }
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+    else:
+        print("Warning: GITHUB_TOKEN not found in environment variables")
+    return headers
+
+def validate_github_params(username, repo=None):
+    """Validate GitHub username and repository name format"""
+    import re
+    
+    # Basic username validation (GitHub allows alphanumeric, hyphens, but not starting/ending with hyphen)
+    if not re.match(r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$', username):
+        return False, f"Invalid username format: {username}"
+    
+    if repo:
+        # Basic repo validation (similar to username but allows dots)
+        if not re.match(r'^[a-zA-Z0-9._-]+$', repo):
+            return False, f"Invalid repository name format: {repo}"
+    
+    return True, "Valid"
 
 @tester_bp.route('/')
 def index():
@@ -25,23 +53,55 @@ def list_repos():
     username = request.args.get('username')
     if not username:
         return jsonify({'error': 'No username provided'}), 400
-    r = requests.get(f"{GITHUB_API}/users/{username}/repos")
-    if r.status_code != 200:
-        return jsonify({'error': 'GitHub error'}), 500
-    repos = [repo['name'] for repo in r.json()]
-    return jsonify({'repos': repos})
+    
+    headers = get_github_headers()
+    try:
+        r = requests.get(f"{GITHUB_API}/users/{username}/repos", headers=headers)
+        if r.status_code == 404:
+            return jsonify({'error': f'User "{username}" not found'}), 404
+        elif r.status_code == 403:
+            return jsonify({'error': 'GitHub API rate limit exceeded or insufficient permissions'}), 403
+        elif r.status_code != 200:
+            error_msg = f'GitHub API error: {r.status_code}'
+            try:
+                error_detail = r.json().get('message', 'Unknown error')
+                error_msg += f' - {error_detail}'
+            except:
+                pass
+            return jsonify({'error': error_msg}), 500
+        
+        repos = [repo['name'] for repo in r.json()]
+        return jsonify({'repos': repos})
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Network error: {str(e)}'}), 500
 
 @tester_bp.route('/branches')
 def list_branches():
     username = request.args.get('username')
     repo = request.args.get('repo')
     if not username or not repo:
-        return jsonify({'error': 'Missing params'}), 400
-    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/branches")
-    if r.status_code != 200:
-        return jsonify({'error': 'GitHub error'}), 500
-    branches = [b['name'] for b in r.json()]
-    return jsonify({'branches': branches})
+        return jsonify({'error': 'Missing username or repo parameter'}), 400
+    
+    headers = get_github_headers()
+    try:
+        r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/branches", headers=headers)
+        if r.status_code == 404:
+            return jsonify({'error': f'Repository "{username}/{repo}" not found'}), 404
+        elif r.status_code == 403:
+            return jsonify({'error': 'GitHub API rate limit exceeded or insufficient permissions'}), 403
+        elif r.status_code != 200:
+            error_msg = f'GitHub API error: {r.status_code}'
+            try:
+                error_detail = r.json().get('message', 'Unknown error')
+                error_msg += f' - {error_detail}'
+            except:
+                pass
+            return jsonify({'error': error_msg}), 500
+        
+        branches = [b['name'] for b in r.json()]
+        return jsonify({'branches': branches})
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Network error: {str(e)}'}), 500
 
 @tester_bp.route('/repo_files')
 def repo_files():
@@ -49,12 +109,29 @@ def repo_files():
     repo = request.args.get('repo')
     branch = request.args.get('branch', 'main')
     if not username or not repo:
-        return jsonify({'error': 'Missing params'}), 400
-    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents", params={'ref': branch})
-    if r.status_code != 200:
-        return jsonify({'error': 'GitHub error'}), 500
-    py_files = [f['path'] for f in r.json() if f['name'].endswith('.py')]
-    return jsonify({'files': py_files})
+        return jsonify({'error': 'Missing username or repo parameter'}), 400
+    
+    headers = get_github_headers()
+    try:
+        r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents", 
+                        headers=headers, params={'ref': branch})
+        if r.status_code == 404:
+            return jsonify({'error': f'Repository "{username}/{repo}" or branch "{branch}" not found'}), 404
+        elif r.status_code == 403:
+            return jsonify({'error': 'GitHub API rate limit exceeded or insufficient permissions'}), 403
+        elif r.status_code != 200:
+            error_msg = f'GitHub API error: {r.status_code}'
+            try:
+                error_detail = r.json().get('message', 'Unknown error')
+                error_msg += f' - {error_detail}'
+            except:
+                pass
+            return jsonify({'error': error_msg}), 500
+        
+        py_files = [f['path'] for f in r.json() if f['name'].endswith('.py')]
+        return jsonify({'files': py_files})
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Network error: {str(e)}'}), 500
 
 @tester_bp.route('/file_content')
 def file_content():
@@ -63,13 +140,30 @@ def file_content():
     path = request.args.get('path')
     branch = request.args.get('branch', 'main')
     if not username or not repo or not path:
-        return jsonify({'error': 'Missing params'}), 400
-    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}", params={'ref': branch})
-    if r.status_code != 200:
-        return jsonify({'error': 'GitHub error'}), 500
-    import base64
-    content = base64.b64decode(r.json()['content']).decode('utf-8')
-    return jsonify({'content': content})
+        return jsonify({'error': 'Missing username, repo, or path parameter'}), 400
+    
+    headers = get_github_headers()
+    try:
+        r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}", 
+                        headers=headers, params={'ref': branch})
+        if r.status_code == 404:
+            return jsonify({'error': f'File "{path}" not found in repository "{username}/{repo}" on branch "{branch}"'}), 404
+        elif r.status_code == 403:
+            return jsonify({'error': 'GitHub API rate limit exceeded or insufficient permissions'}), 403
+        elif r.status_code != 200:
+            error_msg = f'GitHub API error: {r.status_code}'
+            try:
+                error_detail = r.json().get('message', 'Unknown error')
+                error_msg += f' - {error_detail}'
+            except:
+                pass
+            return jsonify({'error': error_msg}), 500
+        
+        import base64
+        content = base64.b64decode(r.json()['content']).decode('utf-8')
+        return jsonify({'content': content})
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Network error: {str(e)}'}), 500
 
 def extract_functions(code):
     tree = ast.parse(code)
