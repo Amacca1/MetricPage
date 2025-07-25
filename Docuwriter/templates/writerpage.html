@@ -2,27 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Repo Viewer</title>
+    <title>GitHub Repo Docuwriter</title>
     <style>
         /* Main application styles - dark theme with monospace font */
         body { font-family: 'Fira Mono', monospace; margin: 0; background: #23272e; color: #eee; }
         .container { display: flex; height: 100vh; }
         
-        /* Sidebar navigation for file tree */
+        /* Sidebar navigation for repo selection and file tree */
         .sidebar {
-            width: 260px;
+            width: 300px;
             background: #181a20;
             padding: 16px 0;
             overflow-y: auto;
             border-right: 1px solid #333;
         }
         
+        /* Repo selection form */
+        .repo-form {
+            padding: 16px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 16px;
+        }
+        
+        .repo-form input, .repo-form select {
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0;
+            background: #2d313a;
+            border: 1px solid #444;
+            color: #eee;
+            border-radius: 4px;
+        }
+        
+        .repo-form button {
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0;
+            background: #007bff;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .repo-form button:hover {
+            background: #0056b3;
+        }
+        
         /* File list styling */
         .file-list { list-style: none; padding: 0; margin: 0; }
         .file-list li {
-            padding: 6px 24px;
+            padding: 6px 16px;
             cursor: pointer;
             border-radius: 4px;
+            font-size: 14px;
         }
         .file-list li:hover, .file-list li.selected {
             background: #2d313a;
@@ -44,287 +77,286 @@
             font-size: 15px;
             overflow-x: auto;
             margin: 0;
-        }
-        
-        /* Highlighted block for suggested documentation */
-        .suggested-block {
-            background: linear-gradient(90deg, #ffe066 80%, #fffbe6 100%);
-            color: #23272e;
-            border-left: 6px solid #f7b500;
-            box-shadow: 0 2px 8px rgba(247,181,0,0.08);
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 8px;
-            font-weight: bold;
-            font-family: 'Fira Mono', monospace;
-            white-space: pre-wrap;
-            transition: background 0.3s;
-            animation: fadeIn 0.7s;
-        }
-        
-        /* Fade-in animation for suggested documentation */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        /* Label for suggested documentation sections */
-        .suggested-label {
-            color: #f7b500;
-            font-size: 13px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-            display: block;
-        }
-        
-        /* Original code styling with border */
-        pre.code-original {
-            background: #181a20;
-            color: #eee;
-            padding: 18px;
-            border-radius: 8px;
-            font-size: 15px;
-            overflow-x: auto;
-            margin: 0;
             border: 1px solid #333;
         }
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="sidebar">
-        <div style="padding: 16px;">
-            <label for="repoPath">Repo path:</label>
-            <input type="text" id="repoPath" value="" placeholder="/absolute/path/to/repo" style="width: 70%;">
-            <button onclick="setRepo()">Load Repo</button>
-            <button onclick="generateReadme()">Generate README</button>
-        </div>
-        <ul class="file-list" id="fileList"></ul>
-    </div>
-    <div class="main">
-        <h2 id="filename"></h2>
-        <pre id="fileContent">// Select a file to view its contents</pre>
-        <button id="previewBtn" style="margin-top:10px;">Preview Suggested Doc</button>
-        <button id="approveBtn
-# === DOCUWRITER SUGGESTED DOCUMENTATION END ===
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Repo Viewer</title>
-    <style>
-        /* Main application styles - dark theme with monospace font */
-        body { font-family: 'Fira Mono', monospace; margin: 0; background: #23272e; color: #eee; }
-        .container { display: flex; height: 100vh; }
         
-        /* Sidebar navigation for file tree */
-        .sidebar {
-            width: 260px;
-            background: #181a20;
-            padding: 16px 0;
-            overflow-y: auto;
-            border-right: 1px solid #333;
-        }
-        
-        /* File list styling */
-        .file-list { list-style: none; padding: 0; margin: 0; }
-        .file-list li {
-            padding: 6px 24px;
-            cursor: pointer;
+        /* Button styling */
+        .action-btn {
+            margin: 10px 5px 10px 0;
+            padding: 8px 16px;
+            background: #28a745;
+            border: none;
+            color: white;
             border-radius: 4px;
-        }
-        .file-list li:hover, .file-list li.selected {
-            background: #2d313a;
+            cursor: pointer;
         }
         
-        /* Main content area for displaying file contents */
-        .main {
-            flex: 1;
-            padding: 24px;
-            overflow-y: auto;
+        .action-btn:hover {
+            background: #218838;
         }
         
-        /* Code block styling */
-        pre {
-            background: #181a20;
-            color: #eee;
-            padding: 18px;
-            border-radius: 8px;
-            font-size: 15px;
-            overflow-x: auto;
-            margin: 0;
+        .action-btn.secondary {
+            background: #6c757d;
         }
         
-        /* Highlighted block for suggested documentation */
+        .action-btn.secondary:hover {
+            background: #5a6268;
+        }
+        
+        /* Suggested documentation styling */
         .suggested-block {
             background: linear-gradient(90deg, #ffe066 80%, #fffbe6 100%);
             color: #23272e;
-            border-left: 6px solid #f7b500;
-            box-shadow: 0 2px 8px rgba(247,181,0,0.08);
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 8px;
-            font-weight: bold;
-            font-family: 'Fira Mono', monospace;
-            white-space: pre-wrap;
-            transition: background 0.3s;
-            animation: fadeIn 0.7s;
-        }
-        
-        /* Fade-in animation for suggested documentation */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        /* Label for suggested documentation sections */
-        .suggested-label {
-            color: #f7b500;
-            font-size: 13px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-            display: block;
-        }
-        
-        /* Original code styling with border */
-        pre.code-original {
-            background: #181a20;
-            color: #eee;
-            padding: 18px;
-            border-radius: 8px;
-            font-size: 15px;
-            overflow-x: auto;
-            margin: 0;
-            border: 1px solid #333;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 12px 0;
+            border-left: 4px solid #ffc107;
         }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="sidebar">
-        <div style="padding: 16px;">
-            <label for="repoPath">Repo path:</label>
-            <input type="text" id="repoPath" value="" placeholder="/absolute/path/to/repo" style="width: 70%;">
-            <button onclick="setRepo()">Load Repo</button>
-            <button onclick="generateReadme()">Generate README</button>
+        <div class="repo-form">
+            <h3>GitHub Repository</h3>
+            <input type="text" id="username" placeholder="GitHub username" />
+            <button onclick="loadRepos()">Load Repositories</button>
+            
+            <select id="repoSelect" style="display:none;">
+                <option value="">Select repository...</option>
+            </select>
+            
+            <select id="branchSelect" style="display:none;">
+                <option value="">Select branch...</option>
+            </select>
+            
+            <button id="loadFilesBtn" onclick="loadFiles()" style="display:none;">Load Files</button>
+            <button id="generateReadmeBtn" onclick="generateReadme()" style="display:none;">Generate README</button>
         </div>
         <ul class="file-list" id="fileList"></ul>
     </div>
     <div class="main">
-        <h2 id="filename"></h2>
-        <pre id="fileContent">// Select a file to view its contents</pre>
-        <button id="previewBtn" style="margin-top:10px;">Preview Suggested Doc</button>
-        <button id="approveBtn" style="margin-top:10px;">Approve & Write</button>
-        <div id="previewArea"></div>
+        <h2 id="filename">Select a file to view its contents</h2>
+        <pre id="fileContent">// Choose a GitHub repository and file to get started</pre>
+        <button id="suggestBtn" class="action-btn" onclick="suggestDoc()" style="display:none;">Suggest Documentation</button>
+        <div id="suggestion" style="display:none;"></div>
     </div>
 </div>
+
 <script>
-let repoRoot = "";
-let lastSuggestion = "";
-let lastFile = "";
+    let currentRepo = { username: '', repo: '', branch: 'main' };
+    let currentFile = '';
+    let currentContent = '';
 
-function setRepo() {
-    repoRoot = document.getElementById('repoPath').value;
-    loadFileTree();
-}
-
-async function generateReadme() {
-    const res = await fetch('/generate_readme?root=' + encodeURIComponent(repoRoot), {
-        method: 'POST'
-    });
-    const data = await res.json();
-    if (data.success) {
-        alert("README.md generated!");
-        loadFileTree();
-    } else {
-        alert("Error generating README: " + (data.error || "Unknown error"));
-    }
-}
-
-async function loadFileTree() {
-    const res = await fetch('/filetree?root=' + encodeURIComponent(repoRoot));
-    const files = await res.json();
-    const fileList = document.getElementById('fileList');
-    fileList.innerHTML = '';
-    files.forEach(file => {
-        const li = document.createElement('li');
-        li.textContent = file;
-        li.onclick = () => selectFile(file, li);
-        fileList.appendChild(li);
-    });
-}
-
-document.getElementById('previewBtn').onclick = async function() {
-    if (!lastFile || !lastSuggestion) return;
-    const res = await fetch('/preview_doc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: lastFile, suggestion: lastSuggestion })
-    });
-    const data = await res.json();
-    if (data.preview) {
-        const start = data.preview.indexOf('// DOCUWRITER SUGGESTED DOCUMENTATION START //');
-        const end = data.preview.indexOf('// DOCUWRITER SUGGESTED DOCUMENTATION END //');
-        if (start !== -1 && end !== -1) {
-            const before = data.preview.slice(0, start);
-            const suggested = data.preview.slice(start, end + '// DOCUWRITER SUGGESTED DOCUMENTATION END //'.length);
-            const after = data.preview.slice(end + '// DOCUWRITER SUGGESTED DOCUMENTATION END //'.length);
-            document.getElementById('previewArea').innerHTML =
-                `<pre>${before}</pre>
-                 <div class="suggested-block">${suggested}</div>
-                 <pre>${after}</pre>`;
-        } else {
-            document.getElementById('previewArea').innerHTML = `<pre>${data.preview}</pre>`;
+    async function loadRepos() {
+        const username = document.getElementById('username').value;
+        if (!username) {
+            alert('Please enter a GitHub username');
+            return;
         }
-    } else {
-        document.getElementById('previewArea').innerHTML = data.error;
+
+        try {
+            const response = await fetch(`/writer/repos?username=${username}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+
+            const repoSelect = document.getElementById('repoSelect');
+            repoSelect.innerHTML = '<option value="">Select repository...</option>';
+            data.repos.forEach(repo => {
+                const option = document.createElement('option');
+                option.value = repo;
+                option.textContent = repo;
+                repoSelect.appendChild(option);
+            });
+            
+            repoSelect.style.display = 'block';
+            repoSelect.onchange = loadBranches;
+            
+            currentRepo.username = username;
+        } catch (error) {
+            alert('Error loading repositories: ' + error.message);
+        }
     }
-};
 
-document.getElementById('approveBtn').onclick = async function() {
-    if (!lastFile || !lastSuggestion) return;
-    const res = await fetch('/add_doc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: lastFile, suggestion: lastSuggestion })
-    });
-    const data = await res.json();
-    if (data.success) {
-        alert("Documentation added!");
-        loadFileTree();
-    } else {
-        alert("Error: " + (data.error || "Unknown error"));
+    async function loadBranches() {
+        const repo = document.getElementById('repoSelect').value;
+        if (!repo) return;
+
+        try {
+            const response = await fetch(`/writer/branches?username=${currentRepo.username}&repo=${repo}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+
+            const branchSelect = document.getElementById('branchSelect');
+            branchSelect.innerHTML = '<option value="">Select branch...</option>';
+            data.branches.forEach(branch => {
+                const option = document.createElement('option');
+                option.value = branch;
+                option.textContent = branch;
+                branchSelect.appendChild(option);
+            });
+            
+            branchSelect.style.display = 'block';
+            branchSelect.onchange = () => {
+                currentRepo.branch = branchSelect.value;
+                if (currentRepo.branch) {
+                    document.getElementById('loadFilesBtn').style.display = 'block';
+                    document.getElementById('generateReadmeBtn').style.display = 'block';
+                }
+            };
+            
+            currentRepo.repo = repo;
+            
+            // Auto-select main/master branch if available
+            if (data.branches.includes('main')) {
+                branchSelect.value = 'main';
+                currentRepo.branch = 'main';
+                document.getElementById('loadFilesBtn').style.display = 'block';
+                document.getElementById('generateReadmeBtn').style.display = 'block';
+            } else if (data.branches.includes('master')) {
+                branchSelect.value = 'master';
+                currentRepo.branch = 'master';
+                document.getElementById('loadFilesBtn').style.display = 'block';
+                document.getElementById('generateReadmeBtn').style.display = 'block';
+            }
+            
+        } catch (error) {
+            alert('Error loading branches: ' + error.message);
+        }
     }
-};
 
-async function selectFile(file, li) {
-    document.querySelectorAll('#fileList li').forEach(el => el.classList.remove('selected'));
-    li.classList.add('selected');
-    document.getElementById('filename').textContent = file;
-    const res = await fetch('/filecontent?root=' + encodeURIComponent(repoRoot) + '&path=' + encodeURIComponent(file));
-    const data = await res.json();
-    let content = data.content || data.error;
+    async function loadFiles() {
+        if (!currentRepo.username || !currentRepo.repo || !currentRepo.branch) {
+            alert('Please select a repository and branch first');
+            return;
+        }
 
-    // Fetch documentation suggestion
-    const docRes = await fetch('/suggest_doc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: file, code: content })
-    });
-    const docData = await docRes.json();
-    let suggestion = docData.suggestion || docData.error || '';
+        try {
+            const response = await fetch(`/writer/filetree?username=${currentRepo.username}&repo=${currentRepo.repo}&branch=${currentRepo.branch}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
 
-    lastFile = file;
-    lastSuggestion = suggestion;
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            data.forEach(file => {
+                const li = document.createElement('li');
+                li.textContent = file;
+                li.onclick = () => loadFileContent(file);
+                fileList.appendChild(li);
+            });
+            
+        } catch (error) {
+            alert('Error loading files: ' + error.message);
+        }
+    }
 
-    document.getElementById('fileContent').textContent =
-        suggestion ? `// Suggested documentation:\n${suggestion}\n\n${content}` : content;
-    document.getElementById('previewArea').innerHTML = ""; // Clear preview on file select
-}
+    async function loadFileContent(path) {
+        try {
+            const response = await fetch(`/writer/filecontent?username=${currentRepo.username}&repo=${currentRepo.repo}&path=${path}&branch=${currentRepo.branch}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
 
-window.onload = () => {};
+            document.getElementById('filename').textContent = path;
+            document.getElementById('fileContent').textContent = data.content;
+            document.getElementById('suggestBtn').style.display = 'block';
+            document.getElementById('suggestion').style.display = 'none';
+            
+            // Update selected file in list
+            document.querySelectorAll('.file-list li').forEach(li => li.classList.remove('selected'));
+            event.target.classList.add('selected');
+            
+            currentFile = path;
+            currentContent = data.content;
+            
+        } catch (error) {
+            alert('Error loading file content: ' + error.message);
+        }
+    }
+
+    async function suggestDoc() {
+        if (!currentContent) {
+            alert('Please select a file first');
+            return;
+        }
+
+        try {
+            const response = await fetch('/writer/suggest_doc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: currentContent })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+
+            const suggestionDiv = document.getElementById('suggestion');
+            suggestionDiv.innerHTML = `
+                <div class="suggested-block">
+                    <h4>Suggested Documentation:</h4>
+                    <pre>${data.suggestion}</pre>
+                </div>
+            `;
+            suggestionDiv.style.display = 'block';
+            
+        } catch (error) {
+            alert('Error getting documentation suggestion: ' + error.message);
+        }
+    }
+
+    async function generateReadme() {
+        if (!currentRepo.username || !currentRepo.repo || !currentRepo.branch) {
+            alert('Please select a repository and branch first');
+            return;
+        }
+
+        try {
+            const response = await fetch('/writer/generate_readme', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentRepo.username,
+                    repo: currentRepo.repo,
+                    branch: currentRepo.branch
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+
+            document.getElementById('filename').textContent = 'Generated README.md';
+            document.getElementById('fileContent').textContent = data.readme;
+            document.getElementById('suggestBtn').style.display = 'none';
+            document.getElementById('suggestion').style.display = 'none';
+            
+        } catch (error) {
+            alert('Error generating README: ' + error.message);
+        }
+    }
 </script>
 </body>
 </html>

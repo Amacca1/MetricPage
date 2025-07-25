@@ -5,69 +5,118 @@ import os
 import re
 import ast
 import json
+import base64
 
 load_dotenv()
 
 docuwriter_bp = Blueprint('docuwriter', __name__, template_folder='templates')
 
+GITHUB_API = "https://api.github.com"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
 MODEL = os.getenv("MODEL")
 VERSION = os.getenv("VERSION")
-
-REPO_ROOT = os.path.abspath(os.path.dirname(__file__))
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Optional: for private repos or higher rate limits
 
 @docuwriter_bp.route('/')
 def index():
     return render_template('writerpage.html')
 
+@docuwriter_bp.route('/repos')
+def list_repos():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'error': 'No username provided'}), 400
+    
+    headers = {}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f"token {GITHUB_TOKEN}"
+    
+    r = requests.get(f"{GITHUB_API}/users/{username}/repos", headers=headers)
+    if r.status_code != 200:
+        return jsonify({'error': 'GitHub error'}), 500
+    repos = [repo['name'] for repo in r.json()]
+    return jsonify({'repos': repos})
+
+@docuwriter_bp.route('/branches')
+def list_branches():
+    username = request.args.get('username')
+    repo = request.args.get('repo')
+    if not username or not repo:
+        return jsonify({'error': 'Missing params'}), 400
+    
+    headers = {}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f"token {GITHUB_TOKEN}"
+    
+    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/branches", headers=headers)
+    if r.status_code != 200:
+        return jsonify({'error': 'GitHub error'}), 500
+    branches = [b['name'] for b in r.json()]
+    return jsonify({'branches': branches})
+
 @docuwriter_bp.route('/filetree')
 def filetree():
-    repo_root = request.args.get('root') or REPO_ROOT
-    tree = []
-    ignore_dirs = {'venv', '.venv', '__pycache__', 'tests', 'migrations'}
-    for root, dirs, files in os.walk(repo_root):
-        dirs[:] = [d for d in dirs if d not in ignore_dirs]
-        rel_root = os.path.relpath(root, repo_root)
-        for file in files:
-            if file.endswith('.py') or file.endswith('.html') or file == "README.md":
-                tree.append(os.path.join(rel_root, file))
+    username = request.args.get('username')
+    repo = request.args.get('repo')
+    branch = request.args.get('branch', 'main')
+    if not username or not repo:
+        return jsonify({'error': 'Missing params'}), 400
+    
+    headers = {}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f"token {GITHUB_TOKEN}"
+    
+    def get_repo_files(path=""):
+        url = f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}"
+        params = {'ref': branch}
+        r = requests.get(url, headers=headers, params=params)
+        if r.status_code != 200:
+            return []
+        
+        files = []
+        for item in r.json():
+            if item['type'] == 'file':
+                if (item['name'].endswith('.py') or 
+                    item['name'].endswith('.html') or 
+                    item['name'] == "README.md"):
+                    files.append(item['path'])
+            elif item['type'] == 'dir' and item['name'] not in {'venv', '.venv', '__pycache__', 'tests', 'migrations'}:
+                files.extend(get_repo_files(item['path']))
+        return files
+    
+    tree = get_repo_files()
     return jsonify(tree)
 
 @docuwriter_bp.route('/filecontent')
 def filecontent():
-    repo_root = request.args.get('root') or REPO_ROOT
+    username = request.args.get('username')
+    repo = request.args.get('repo')
     path = request.args.get('path')
-    if not path:
-        return jsonify({'error': 'No path provided'}), 400
-    abs_path = os.path.abspath(os.path.join(repo_root, path))
-    if not abs_path.startswith(repo_root):
-        return jsonify({'error': 'Invalid path'}), 400
-    try:
-        with open(abs_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return jsonify({'content': content})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    branch = request.args.get('branch', 'main')
+    
+    if not username or not repo or not path:
+        return jsonify({'error': 'Missing params'}), 400
+    
+    headers = {}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f"token {GITHUB_TOKEN}"
+    
+    r = requests.get(f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}", 
+                    headers=headers, params={'ref': branch})
+    if r.status_code != 200:
+        return jsonify({'error': 'GitHub error'}), 500
+    
+    content = base64.b64decode(r.json()['content']).decode('utf-8')
+    return jsonify({'content': content})
 
 @docuwriter_bp.route('/suggest_doc', methods=['POST'])
 def suggest_doc():
     data = request.get_json()
-    path = data.get("path")
     code = data.get("code") 
 
-    if not path and not code:
-        return jsonify({'error': 'No file path or code provided'}), 400
-
-    if code is None:
-        abs_path = os.path.abspath(os.path.join(REPO_ROOT, path))
-        if not abs_path.startswith(REPO_ROOT):
-            return jsonify({'error': 'Invalid path'}), 400
-        try:
-            with open(abs_path, 'r', encoding='utf-8') as f:
-                code = f.read()
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+    if not code:
+        return jsonify({'error': 'No code provided'}), 400
 
     system_prompt = (
         "You are an expert code documentation assistant. "
@@ -98,7 +147,6 @@ def suggest_doc():
         response.raise_for_status()
         resp_json = response.json()
         suggestion = resp_json["content"][0]["text"]
-        resp_json = response.json()
         usage = resp_json.get("usage", {})
         input_tokens = usage.get("input_tokens")
         output_tokens = usage.get("output_tokens")
@@ -108,74 +156,64 @@ def suggest_doc():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-@docuwriter_bp.route('/add_doc', methods=['POST'])
-def add_doc():
-    data = request.get_json()
-    path = data.get("path")
-    suggestion = data.get("suggestion")
-
-    if not path or not suggestion:
-        return jsonify({'error': 'No file path or suggestion provided'}), 400
-
-    abs_path = os.path.abspath(os.path.join(REPO_ROOT, path))
-    if not abs_path.startswith(REPO_ROOT):
-        return jsonify({'error': 'Invalid path'}), 400
-
-    # Remove suggested start/end markers if present
-    suggestion = re.sub(r'# === DOCUWRITER SUGGESTED DOCUMENTATION START ===\n?', '', suggestion)
-    suggestion = re.sub(r'# === DOCUWRITER SUGGESTED DOCUMENTATION END ===\n?', '', suggestion)
-
-    try:
-        with open(abs_path, 'r', encoding='utf-8') as f:
-            original = f.read()
-
-        # If Python file and suggestion is a mapping, use advanced placement
-        if abs_path.endswith('.py'):
-            try:
-                # Expecting suggestion as JSON string mapping names to docstrings
-                suggestions = json.loads(suggestion)
-                updated = insert_docstrings(original, suggestions)
-            except Exception:
-                updated = suggestion + "\n" + original
-        else:
-            updated = suggestion + "\n" + original
-
-        with open(abs_path, 'w', encoding='utf-8') as f:
-            f.write(updated)
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @docuwriter_bp.route('/generate_readme', methods=['POST'])
 def generate_readme():
-    repo_root = request.args.get('root') or REPO_ROOT
+    data = request.get_json()
+    username = data.get('username')
+    repo = data.get('repo')
+    branch = data.get('branch', 'main')
+    
+    if not username or not repo:
+        return jsonify({'error': 'Missing username or repo'}), 400
 
-    # Gather all code files shown in the filetree
-    tree = []
-    ignore_dirs = {'venv', '.venv', '__pycache__', 'tests', 'migrations'}
-    for root, dirs, files in os.walk(repo_root):
-        dirs[:] = [d for d in dirs if d not in ignore_dirs]
-        rel_root = os.path.relpath(root, REPO_ROOT)
-        for file in files:
-            if file.endswith('.py') or file.endswith('.html'):
-                tree.append(os.path.join(rel_root, file))
+    headers = {}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f"token {GITHUB_TOKEN}"
 
+    # Get all files from the repository
+    def get_repo_files(path=""):
+        url = f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}"
+        params = {'ref': branch}
+        r = requests.get(url, headers=headers, params=params)
+        if r.status_code != 200:
+            return []
+        
+        files = []
+        for item in r.json():
+            if item['type'] == 'file':
+                if (item['name'].endswith('.py') or 
+                    item['name'].endswith('.html') or 
+                    item['name'] == "README.md"):
+                    files.append(item['path'])
+            elif item['type'] == 'dir' and item['name'] not in {'venv', '.venv', '__pycache__', 'tests', 'migrations'}:
+                files.extend(get_repo_files(item['path']))
+        return files
+
+    file_paths = get_repo_files()
+    
     # Read contents of each file (limit total size for API)
     code_snippets = []
     total_chars = 0
     max_chars = 8000  # Limit to avoid API issues
-    for path in tree:
-        abs_path = os.path.abspath(os.path.join(REPO_ROOT, path))
-        try:
-            with open(abs_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            snippet = f"File: {path}\n{content}\n"
-            if total_chars + len(snippet) > max_chars:
-                break
-            code_snippets.append(snippet)
-            total_chars += len(snippet)
-        except Exception:
-            continue
+    
+    for path in file_paths:
+        if total_chars > max_chars:
+            break
+            
+        file_url = f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}"
+        params = {'ref': branch}
+        r = requests.get(file_url, headers=headers, params=params)
+        
+        if r.status_code == 200:
+            try:
+                content = base64.b64decode(r.json()['content']).decode('utf-8')
+                snippet = f"File: {path}\n{content}\n"
+                if total_chars + len(snippet) > max_chars:
+                    break
+                code_snippets.append(snippet)
+                total_chars += len(snippet)
+            except Exception:
+                continue
 
     # Compose prompt for the API
     prompt = (
@@ -186,7 +224,7 @@ def generate_readme():
         + "\n".join(code_snippets)
     )
 
-    headers = {
+    headers_api = {
         "Content-Type": "application/json",
         "x-api-key": ANTHROPIC_API_KEY,
         "anthropic-version": VERSION
@@ -202,61 +240,15 @@ def generate_readme():
     }
 
     try:
-        response = requests.post(ANTHROPIC_API_URL, json=payload, headers=headers)
+        response = requests.post(ANTHROPIC_API_URL, json=payload, headers=headers_api)
         response.raise_for_status()
         resp_json = response.json()
         readme_content = resp_json["content"][0]["text"]
-        # Write README.md to the selected repo directory
-        readme_path = os.path.join(repo_root, "README.md")
-        print(f"Writing README to {readme_path}")
-        with open(readme_path, "w", encoding="utf-8") as f:
-            f.write(readme_content)
         return jsonify({"success": True, "readme": readme_content})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-@docuwriter_bp.route('/preview_doc', methods=['POST'])
-def preview_doc():
-    import re
-    data = request.get_json()
-    path = data.get("path")
-    suggestion = data.get("suggestion")
-
-    if not path or not suggestion:
-        return jsonify({'error': 'No file path or suggestion provided'}), 400
-
-    repo_root = request.args.get('root') or REPO_ROOT
-    abs_path = os.path.abspath(os.path.join(repo_root, path))
-    if not abs_path.startswith(repo_root):
-        return jsonify({'error': 'Invalid path'}), 400
-
-    try:
-        with open(abs_path, 'r', encoding='utf-8') as f:
-            original = f.read()
-
-        # Highlight block with HTML for preview
-        highlighted = (
-            "\n<span style='background-color: #ffe066; color: #23272e; display: block; padding: 8px; border-radius: 4px;'>"
-            "<b>// DOCUWRITER SUGGESTED DOCUMENTATION START //</b><br>"
-            f"{suggestion.replace('\n', '<br>')}"
-            "<br><b>// DOCUWRITER SUGGESTED DOCUMENTATION END //</b></span>\n"
-        )
-
-        # Insert above first function/class for Python, else prepend
-        if abs_path.endswith('.py'):
-            match = re.search(r'^(class |def )', original, re.MULTILINE)
-            if match:
-                idx = match.start()
-                preview = original[:idx] + highlighted + original[idx:]
-            else:
-                preview = highlighted + original
-        else:
-            preview = highlighted + original
-
-        return jsonify({'preview': preview})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+# Helper functions for documentation processing
 def insert_docstrings(original_code, suggestions):
     """
     original_code: str, the code of the file
@@ -265,32 +257,21 @@ def insert_docstrings(original_code, suggestions):
     """
     try:
         tree = ast.parse(original_code)
-        lines = original_code.splitlines()
-        # Offset for inserted lines
-        offset = 0
+    except SyntaxError:
+        return original_code
+    
+    lines = original_code.split('\n')
+    offset = 0  # Track line insertions
 
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-                name = node.name
-                if name in suggestions:
-                    # Insert after the definition line
-                    def_line = node.lineno - 1 + offset
-                    docstring = suggestions[name]
-                    # Insert as a docstring (for Python)
-                    lines.insert(def_line + 1, f'    """{docstring}"""')
-                    offset += 1
-        return "\n".join(lines)
-    except Exception as e:
-        # Fallback: just prepend all suggestions
-        all_docs = "\n".join([f"# {v}" for v in suggestions.values()])
-        return f"{all_docs}\n{original_code}"
-
-def extract_function_code(code, name):
-    import ast
-    tree = ast.parse(code)
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == name:
-            start = node.lineno - 1
-            end = node.end_lineno if hasattr(node, 'end_lineno') else start + 1
-            return '\n'.join(code.splitlines()[start:end])
-    return ""
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            name = node.name
+            if name in suggestions:
+                insert_line = node.lineno - 1 + offset  # Zero-indexed
+                if insert_line < len(lines):
+                    # Insert docstring after function/class definition line
+                    docstring = f'    """{suggestions[name]}"""'
+                    lines.insert(insert_line + 1, docstring)
+                    offset += 1
+
+    return '\n'.join(lines)
