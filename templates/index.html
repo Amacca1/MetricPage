@@ -102,6 +102,14 @@
             background: #5a6268;
         }
         
+        .btn.success {
+            background: #28a745;
+        }
+        
+        .btn.success:hover {
+            background: #218838;
+        }
+        
         .file-list {
             background: #f8f9fa;
             border: 1px solid #ddd;
@@ -316,6 +324,7 @@
                         <button class="btn" onclick="loadDocRepos()">Load Repositories</button>
                         <button class="btn secondary" onclick="loadDocFiles()" id="loadDocFilesBtn" style="display:none;">Load Files</button>
                         <button class="btn secondary" onclick="generateDocReadme()" id="generateDocReadmeBtn" style="display:none;">Generate README</button>
+                        <button class="btn success" onclick="writeReadmeToRepo()" id="writeReadmeBtn" style="display:none;">📝 Write README to Repo</button>
                         
                         <div id="docFileList" class="file-list" style="display:none;"></div>
                     </div>
@@ -699,6 +708,7 @@
                 document.getElementById('docFileContent').textContent = data.content;
                 document.getElementById('suggestDocBtn').style.display = 'inline-block';
                 document.getElementById('docSuggestion').style.display = 'none';
+                document.getElementById('writeReadmeBtn').style.display = 'none'; // Hide write button when viewing files
                 
                 // Update selected file in list
                 document.querySelectorAll('#docFileList .file-item').forEach(item => item.classList.remove('selected'));
@@ -756,7 +766,8 @@
                     body: JSON.stringify({
                         username: currentDocRepo.username,
                         repo: currentDocRepo.repo,
-                        branch: currentDocRepo.branch
+                        branch: currentDocRepo.branch,
+                        write_to_repo: false  // Just generate, don't write yet
                     })
                 });
                 
@@ -767,13 +778,78 @@
                     return;
                 }
 
-                document.getElementById('docFilename').textContent = 'Generated README.md';
+                document.getElementById('docFilename').textContent = 'Generated README.md (Preview)';
                 document.getElementById('docFileContent').textContent = data.readme;
                 document.getElementById('suggestDocBtn').style.display = 'none';
                 document.getElementById('docSuggestion').style.display = 'none';
                 
+                // Show the write button after successful generation
+                document.getElementById('writeReadmeBtn').style.display = 'inline-block';
+                
             } catch (error) {
                 alert('Error generating README: ' + error.message);
+            }
+        }
+
+        async function writeReadmeToRepo() {
+            if (!currentDocRepo.username || !currentDocRepo.repo || !currentDocRepo.branch) {
+                alert('Please select a repository and branch first');
+                return;
+            }
+
+            // Get the current README content from the display
+            const readmeContent = document.getElementById('docFileContent').textContent;
+            
+            if (!readmeContent || readmeContent === 'Choose a GitHub repository and file to get started') {
+                alert('Please generate a README first');
+                return;
+            }
+
+            // Confirm with user before writing
+            if (!confirm('Are you sure you want to write this README to the repository? This will create or update the README.md file.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/writer/generate_readme', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentDocRepo.username,
+                        repo: currentDocRepo.repo,
+                        branch: currentDocRepo.branch,
+                        write_to_repo: true,
+                        readme_content: readmeContent  // Send the current content
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                if (data.written_to_repo) {
+                    let message = '✅ README.md successfully written to repository!';
+                    if (data.local_saved && data.local_path) {
+                        message += `\n📁 Local copy saved to: ${data.local_path}`;
+                    }
+                    alert(message);
+                    document.getElementById('docFilename').textContent = 'README.md (Written to Repository)';
+                    document.getElementById('writeReadmeBtn').style.display = 'none';
+                } else if (data.write_error) {
+                    let message = '❌ Failed to write to repository: ' + data.write_error;
+                    if (data.local_saved && data.local_path) {
+                        message += `\n📁 But local copy was saved to: ${data.local_path}`;
+                    }
+                    alert(message);
+                } else {
+                    alert('❌ Unknown error occurred while writing to repository');
+                }
+                
+            } catch (error) {
+                alert('Error writing README: ' + error.message);
             }
         }
 

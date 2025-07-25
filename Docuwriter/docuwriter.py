@@ -163,6 +163,7 @@ def generate_readme():
     repo = data.get('repo')
     branch = data.get('branch', 'main')
     write_to_repo = data.get('write_to_repo', False)  # New option to write to repo
+    readme_content = data.get('readme_content')  # Pre-generated content for write-only operations
     
     if not username or not repo:
         return jsonify({'error': 'Missing username or repo'}), 400
@@ -171,7 +172,36 @@ def generate_readme():
     if GITHUB_TOKEN:
         headers['Authorization'] = f"token {GITHUB_TOKEN}"
 
-    # Get all files from the repository
+    # If we're writing to repo and have pre-generated content, skip generation
+    if write_to_repo and readme_content:
+        if not GITHUB_TOKEN:
+            return jsonify({"error": "GitHub token required to write to repository"}), 400
+        
+        write_result = write_readme_to_repo(username, repo, branch, readme_content, headers)
+        
+        # Also save a local copy in the workspace for VS Code visibility
+        local_save_result = save_local_readme(username, repo, readme_content)
+        
+        if write_result.get('success'):
+            return jsonify({
+                "success": True, 
+                "readme": readme_content,
+                "written_to_repo": True,
+                "commit_sha": write_result.get('commit_sha'),
+                "local_saved": local_save_result.get('success', False),
+                "local_path": local_save_result.get('path')
+            })
+        else:
+            return jsonify({
+                "success": True, 
+                "readme": readme_content,
+                "written_to_repo": False,
+                "write_error": write_result.get('error'),
+                "local_saved": local_save_result.get('success', False),
+                "local_path": local_save_result.get('path')
+            })
+
+    # Generate README content
     def get_repo_files(path=""):
         url = f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}"
         params = {'ref': branch}
@@ -244,30 +274,38 @@ def generate_readme():
         response = requests.post(ANTHROPIC_API_URL, json=payload, headers=headers_api)
         response.raise_for_status()
         resp_json = response.json()
-        readme_content = resp_json["content"][0]["text"]
+        generated_readme = resp_json["content"][0]["text"]
         
         # If write_to_repo is True, write the README to the repository
         if write_to_repo:
             if not GITHUB_TOKEN:
                 return jsonify({"error": "GitHub token required to write to repository"}), 400
             
-            write_result = write_readme_to_repo(username, repo, branch, readme_content, headers)
+            write_result = write_readme_to_repo(username, repo, branch, generated_readme, headers)
+            
+            # Also save a local copy in the workspace for VS Code visibility
+            local_save_result = save_local_readme(username, repo, generated_readme)
+            
             if write_result.get('success'):
                 return jsonify({
                     "success": True, 
-                    "readme": readme_content,
+                    "readme": generated_readme,
                     "written_to_repo": True,
-                    "commit_sha": write_result.get('commit_sha')
+                    "commit_sha": write_result.get('commit_sha'),
+                    "local_saved": local_save_result.get('success', False),
+                    "local_path": local_save_result.get('path')
                 })
             else:
                 return jsonify({
                     "success": True, 
-                    "readme": readme_content,
+                    "readme": generated_readme,
                     "written_to_repo": False,
-                    "write_error": write_result.get('error')
+                    "write_error": write_result.get('error'),
+                    "local_saved": local_save_result.get('success', False),
+                    "local_path": local_save_result.get('path')
                 })
         
-        return jsonify({"success": True, "readme": readme_content, "written_to_repo": False})
+        return jsonify({"success": True, "readme": generated_readme, "written_to_repo": False})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -308,6 +346,27 @@ def write_readme_to_repo(username, repo, branch, readme_content, headers):
             return {"success": True, "commit_sha": response.json().get("commit", {}).get("sha")}
         else:
             return {"success": False, "error": f"GitHub API error: {response.status_code} - {response.text}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def save_local_readme(username, repo, readme_content):
+    """
+    Save README content to a local file in the workspace for VS Code visibility
+    """
+    try:
+        # Create a local directory structure: workspace/generated_readmes/username_repo/
+        workspace_root = os.path.dirname(os.path.dirname(__file__))  # Go up to MetricPage root
+        readme_dir = os.path.join(workspace_root, "generated_readmes", f"{username}_{repo}")
+        
+        # Create the directory if it doesn't exist
+        os.makedirs(readme_dir, exist_ok=True)
+        
+        # Save the README file
+        readme_path = os.path.join(readme_dir, "README.md")
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write(readme_content)
+        
+        return {"success": True, "path": readme_path}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
