@@ -2,3 +2,4 @@ flask
 dotenv
 pytest
 requests
+anthropic

@@ -1,28 +1,26 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify
 import requests
 from dotenv import load_dotenv
 import os
 
+chatbot_bp = Blueprint('chatbot', __name__, template_folder='templates')
+
 load_dotenv()
-
-app = Flask(__name__)
-
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
 MODEL = os.getenv("MODEL")
 VERSION = os.getenv("VERSION")
 
-@app.route('/')
+@chatbot_bp.route('/')
 def index():
     return render_template('coderpage.html')
 
-
-@app.route('/chatbot')
+@chatbot_bp.route('/chatbot')
 def chatbot():
     return render_template('chatbot.html')
 
-@app.route('/chat', methods=['POST'])
+@chatbot_bp.route('/chat', methods=['POST'])
 def chat():
     data = request.get_json()
     messages = data.get("messages", [])
@@ -53,6 +51,3 @@ def chat():
         return jsonify({"reply": content})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-if __name__ == '__main__':
-    app.run(debug=True)

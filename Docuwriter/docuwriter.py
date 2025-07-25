@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify
 import requests
 from dotenv import load_dotenv
 import os
@@ -8,7 +8,7 @@ import json
 
 load_dotenv()
 
-app = Flask(__name__)
+docuwriter_bp = Blueprint('docuwriter', __name__, template_folder='templates')
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
@@ -17,11 +17,11 @@ VERSION = os.getenv("VERSION")
 
 REPO_ROOT = os.path.abspath(os.path.dirname(__file__))
 
-@app.route('/')
+@docuwriter_bp.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/filetree')
+@docuwriter_bp.route('/filetree')
 def filetree():
     repo_root = request.args.get('root') or REPO_ROOT
     tree = []
@@ -34,7 +34,7 @@ def filetree():
                 tree.append(os.path.join(rel_root, file))
     return jsonify(tree)
 
-@app.route('/filecontent')
+@docuwriter_bp.route('/filecontent')
 def filecontent():
     repo_root = request.args.get('root') or REPO_ROOT
     path = request.args.get('path')
@@ -50,7 +50,7 @@ def filecontent():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/suggest_doc', methods=['POST'])
+@docuwriter_bp.route('/suggest_doc', methods=['POST'])
 def suggest_doc():
     data = request.get_json()
     path = data.get("path")
@@ -108,7 +108,7 @@ def suggest_doc():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-@app.route('/add_doc', methods=['POST'])
+@docuwriter_bp.route('/add_doc', methods=['POST'])
 def add_doc():
     data = request.get_json()
     path = data.get("path")
@@ -146,7 +146,7 @@ def add_doc():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/generate_readme', methods=['POST'])
+@docuwriter_bp.route('/generate_readme', methods=['POST'])
 def generate_readme():
     repo_root = request.args.get('root') or REPO_ROOT
 
@@ -215,7 +215,7 @@ def generate_readme():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-@app.route('/preview_doc', methods=['POST'])
+@docuwriter_bp.route('/preview_doc', methods=['POST'])
 def preview_doc():
     import re
     data = request.get_json()
@@ -294,6 +294,3 @@ def extract_function_code(code, name):
             end = node.end_lineno if hasattr(node, 'end_lineno') else start + 1
             return '\n'.join(code.splitlines()[start:end])
     return ""
-
-if __name__ == '__main__':
-    app.run(debug=True)

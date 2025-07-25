@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetricPage Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f8f9fa; }
+        .container { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #0001; }
+        h1 { text-align: center; margin-bottom: 40px; }
+        .apps { display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; }
+        .app-card {
+            flex: 1 1 200px;
+            min-width: 220px;
+            max-width: 300px;
+            background: #f1f3f6;
+            border-radius: 8px;
+            padding: 24px 18px;
+            box-shadow: 0 1px 4px #0001;
+            text-align: center;
+            transition: box-shadow 0.2s;
+        }
+        .app-card:hover { box-shadow: 0 4px 16px #0002; }
+        .app-card h2 { margin-top: 0; }
+        .app-card a {
+            display: inline-block;
+            margin-top: 18px;
+            padding: 8px 20px;
+            background: #007bff;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .app-card a:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MetricPage Dashboard</h1>
+        <div class="apps">
+            <div class="app-card">
+                <h2>ChatBot</h2>
+                <p>Interact with the Claude-powered AI assistant.</p>
+                <a href="{{ url_for('chatbot.chatbot') }}">Open ChatBot</a>
+            </div>
+            <div class="app-card">
+                <h2>Agent Logger</h2>
+                <p>View and manage agent logs and activities.</p>
+                <a href="{{ url_for('logger.index') }}">Open Agent Logger</a>
+            </div>
+            <div class="app-card">
+                <h2>Docuwriter</h2>
+                <p>Generate and preview documentation for your codebase.</p>
+                <a href="{{ url_for('docuwriter.index') }}">Open Docuwriter</a>
+            </div>
+            <div class="app-card">
+                <h2>TestBot</h2>
+                <p>Browse repos, branches, and run code tests.</p>
+                <a href="{{ url_for('tester.index') }}">Open TestBot</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

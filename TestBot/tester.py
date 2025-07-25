@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify
 import requests
 import os
 import tempfile
@@ -8,7 +8,7 @@ import ast
 import re
 
 load_dotenv()
-app = Flask(__name__)
+tester_bp = Blueprint('tester', __name__, template_folder='templates')
 
 GITHUB_API = "https://api.github.com"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -16,11 +16,11 @@ ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
 MODEL = os.getenv("MODEL")
 VERSION = os.getenv("VERSION")
 
-@app.route('/')
+@tester_bp.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/repos')
+@tester_bp.route('/repos')
 def list_repos():
     username = request.args.get('username')
     if not username:
@@ -31,7 +31,7 @@ def list_repos():
     repos = [repo['name'] for repo in r.json()]
     return jsonify({'repos': repos})
 
-@app.route('/branches')
+@tester_bp.route('/branches')
 def list_branches():
     username = request.args.get('username')
     repo = request.args.get('repo')
@@ -43,7 +43,7 @@ def list_branches():
     branches = [b['name'] for b in r.json()]
     return jsonify({'branches': branches})
 
-@app.route('/repo_files')
+@tester_bp.route('/repo_files')
 def repo_files():
     username = request.args.get('username')
     repo = request.args.get('repo')
@@ -56,7 +56,7 @@ def repo_files():
     py_files = [f['path'] for f in r.json() if f['name'].endswith('.py')]
     return jsonify({'files': py_files})
 
-@app.route('/file_content')
+@tester_bp.route('/file_content')
 def file_content():
     username = request.args.get('username')
     repo = request.args.get('repo')
@@ -110,7 +110,7 @@ def call_claude(function_code,prompt):
 
     return response_text, input_tokens, output_tokens
 
-@app.route('/generate_tests', methods=['POST'])
+@tester_bp.route('/generate_tests', methods=['POST'])
 def generate_tests():
     data = request.json
     code = data.get('code')
@@ -144,7 +144,7 @@ def generate_tests():
         })
     return jsonify({'tests': tests})
 
-@app.route('/run_test', methods=['POST'])
+@tester_bp.route('/run_test', methods=['POST'])
 def run_test():
     data = request.json
     code = data.get('code')
@@ -189,6 +189,3 @@ def run_test():
         except Exception as e:
             output = str(e)
     return jsonify({'output': output})
-
-if __name__ == '__main__':
-    app.run(debug=True)
