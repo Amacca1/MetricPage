@@ -35,17 +35,107 @@
             transition: background 0.2s;
         }
         .app-card a:hover { background: #0056b3; }
+        
+        /* Chatbot Widget Styles */
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .chat-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #007bff;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+        
+        .chat-toggle:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+        
+        .chat-header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+        
+        .chat-input-container {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            background: white;
+            border-radius: 0 0 10px 10px;
+        }
+        
+        .chat-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+            resize: none;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+        
+        .message.assistant {
+            background: #e9ecef;
+            color: #333;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>MetricPage Dashboard</h1>
         <div class="apps">
-            <div class="app-card">
-                <h2>ChatBot</h2>
-                <p>Interact with the Claude-powered AI assistant.</p>
-                <a href="{{ url_for('chatbot.chatbot') }}">Open ChatBot</a>
-            </div>
             <div class="app-card">
                 <h2>Agent Logger</h2>
                 <p>View and manage agent logs and activities.</p>
@@ -63,5 +153,110 @@
             </div>
         </div>
     </div>
+
+    <!-- Chatbot Widget -->
+    <button class="chat-toggle" onclick="toggleChat()">💬</button>
+    
+    <div class="chat-widget" id="chatWidget">
+        <div class="chat-header">
+            <span>AI Assistant</span>
+            <button onclick="toggleChat()" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">×</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message assistant">
+                Hello! I'm your AI assistant. How can I help you today?
+            </div>
+        </div>
+        <div class="typing-indicator" id="typingIndicator">AI is typing...</div>
+        <div class="chat-input-container">
+            <textarea class="chat-input" id="chatInput" placeholder="Type your message..." rows="2" onkeypress="handleKeyPress(event)"></textarea>
+        </div>
+    </div>
+
+    <script>
+        let chatHistory = [
+            { role: "assistant", content: "Hello! I'm your AI assistant. How can I help you today?" }
+        ];
+
+        function toggleChat() {
+            const widget = document.getElementById('chatWidget');
+            const toggle = document.querySelector('.chat-toggle');
+            
+            if (widget.style.display === 'none' || widget.style.display === '') {
+                widget.style.display = 'flex';
+                toggle.style.display = 'none';
+            } else {
+                widget.style.display = 'none';
+                toggle.style.display = 'block';
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            chatHistory.push({ role: "user", content: message });
+            
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Show typing indicator
+            document.getElementById('typingIndicator').style.display = 'block';
+
+            try {
+                const response = await fetch('/chatbot/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: chatHistory.filter(msg => msg.role !== 'assistant' || msg.content !== "Hello! I'm your AI assistant. How can I help you today?")
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Hide typing indicator
+                document.getElementById('typingIndicator').style.display = 'none';
+
+                if (data.reply) {
+                    addMessage(data.reply, 'assistant');
+                    chatHistory.push({ role: "assistant", content: data.reply });
+                } else {
+                    addMessage('Sorry, there was an error processing your request.', 'assistant');
+                }
+            } catch (error) {
+                // Hide typing indicator
+                document.getElementById('typingIndicator').style.display = 'none';
+                addMessage('Sorry, there was an error connecting to the AI service.', 'assistant');
+            }
+        }
+
+        function addMessage(content, role) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.textContent = content;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Auto-resize textarea
+        document.getElementById('chatInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+    </script>
 </body>
 </html>
