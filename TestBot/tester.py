@@ -44,10 +44,6 @@ def validate_github_params(username, repo=None):
     
     return True, "Valid"
 
-@tester_bp.route('/')
-def index():
-    return render_template('testpage.html')
-
 @tester_bp.route('/repos')
 def list_repos():
     username = request.args.get('username')

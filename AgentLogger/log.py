@@ -72,10 +72,6 @@ def get_git_log_summary(username, repo_name, token):
     except Exception as e:
         return f"Error generating summary: {str(e)}"
 
-@logger_bp.route('/')
-def index():
-    return render_template('logger.html')
-
 @logger_bp.route('/get_repos', methods=['POST'])
 def get_repos():
     data = request.get_json()

@@ -18,10 +18,6 @@ MODEL = os.getenv("MODEL")
 VERSION = os.getenv("VERSION")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Optional: for private repos or higher rate limits
 
-@docuwriter_bp.route('/')
-def index():
-    return render_template('writerpage.html')
-
 @docuwriter_bp.route('/repos')
 def list_repos():
     username = request.args.get('username')

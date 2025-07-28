@@ -12,10 +12,6 @@ ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
 MODEL = os.getenv("MODEL")
 VERSION = os.getenv("VERSION")
 
-@chatbot_bp.route('/')
-def index():
-    return render_template('coderpage.html')
-
 @chatbot_bp.route('/chatbot')
 def chatbot():
     return render_template('chatbot.html')
