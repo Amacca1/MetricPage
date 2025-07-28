@@ -193,7 +193,7 @@ def call_claude(function_code, prompt):
     
     data = {
         "model": MODEL or "claude-3-5-sonnet-20241022",
-        "max_tokens": 1024,
+        "max_tokens": 1536,
         "messages": [{"role": "user", "content": full_prompt}]
     }
     
