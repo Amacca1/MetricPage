@@ -169,15 +169,19 @@ def extract_functions(code):
     tree = ast.parse(code)
     return [node for node in tree.body if isinstance(node, ast.FunctionDef)]
 
-def call_claude(function_code,prompt):
+def call_claude(function_code, prompt):
+    """Call Claude API to generate test code"""
+    if not ANTHROPIC_API_KEY:
+        return "# Error: Anthropic API key not configured", 0, 0
+    
     url = "https://api.anthropic.com/v1/messages"
     headers = {
         "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": VERSION,
-        "anthropic-model": MODEL,
+        "anthropic-version": "2023-06-01",
         "content-type": "application/json"
     }
-    prompt = (
+    
+    full_prompt = (
         "Given the following Python function, write a logical, non-trivial pytest test function for it. "
         "Do not simply echo the function or use trivial asserts. "
         "Include all necessary imports. "
@@ -186,57 +190,108 @@ def call_claude(function_code,prompt):
         "Only return the test code, nothing else.\n\n"
         f"{function_code}"
     )
+    
     data = {
-        "model": MODEL,
+        "model": MODEL or "claude-3-5-sonnet-20241022",
         "max_tokens": 1024,
-        "messages": [{"role": "user", "content": prompt}]
+        "messages": [{"role": "user", "content": full_prompt}]
     }
-    r = requests.post(url, headers=headers, json=data)
-    if r.status_code != 200:
-        return "# Claude API error", 0, 0
-    response = r.json()
-    response_text = response['content'][0]['text']
+    
+    try:
+        r = requests.post(url, headers=headers, json=data, timeout=30)
+        if r.status_code != 200:
+            error_msg = f"Claude API error: {r.status_code}"
+            try:
+                error_detail = r.json().get('error', {}).get('message', 'Unknown error')
+                error_msg += f" - {error_detail}"
+            except:
+                error_msg += f" - {r.text}"
+            return f"# {error_msg}", 0, 0
+            
+        response = r.json()
+        
+        # Extract content from response
+        if 'content' in response and len(response['content']) > 0:
+            response_text = response['content'][0]['text']
+        else:
+            return "# Error: No content in Claude response", 0, 0
 
-    # Use exact token counts from API response
-    usage = response.get("usage", {})
-    input_tokens = usage.get("input_tokens", 0)
-    output_tokens = usage.get("output_tokens", 0)
+        # Use exact token counts from API response
+        usage = response.get("usage", {})
+        input_tokens = usage.get("input_tokens", 0)
+        output_tokens = usage.get("output_tokens", 0)
 
-    return response_text, input_tokens, output_tokens
+        return response_text, input_tokens, output_tokens
+        
+    except requests.exceptions.RequestException as e:
+        return f"# Network error calling Claude API: {str(e)}", 0, 0
+    except Exception as e:
+        return f"# Error processing Claude response: {str(e)}", 0, 0
 
 @tester_bp.route('/generate_tests', methods=['POST'])
 def generate_tests():
-    data = request.json
-    code = data.get('code')
-    if not code:
-        return jsonify({'error': 'No code provided'}), 400
-    functions = extract_functions(code)
-    tests = []
-    for func in functions:
-        func_code = ast.unparse(func)
-        prompt = (
-            "Given the following Python function, write a logical, non-trivial pytest test function for it. "
-            "Do not simply echo the function or use trivial asserts. "
-            "Include all necessary imports. "
-            f"IMPORTANT: At the top of your test code, add 'from module import {func.name}'. "
-            "Only call the function by its correct name. "
-            "Only return the test code, nothing else.\n\n"
-            f"{func_code}"
-        )
-        test_code, input_tokens, output_tokens = call_claude(func_code, prompt)
-        # Remove markdown/code block formatting and non-code text
-        test_code = re.sub(r"^```python|^```|```$", "", test_code, flags=re.MULTILINE).strip()
-        # Ensure import pytest is present
-        if "import pytest" not in test_code:
-            test_code = "import pytest\n" + test_code
-        tests.append({
-            'function': func.name,
-            'function_code': func_code,
-            'test_code': test_code,
-            'input_tokens': input_tokens,
-            'output_tokens': output_tokens
-        })
-    return jsonify({'tests': tests})
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
+        code = data.get('code')
+        if not code:
+            return jsonify({'error': 'No code provided'}), 400
+            
+        # Parse the code to extract functions
+        try:
+            functions = extract_functions(code)
+        except SyntaxError as e:
+            return jsonify({'error': f'Syntax error in provided code: {str(e)}'}), 400
+        except Exception as e:
+            return jsonify({'error': f'Error parsing code: {str(e)}'}), 400
+            
+        if not functions:
+            return jsonify({'error': 'No functions found in the provided code'}), 400
+            
+        tests = []
+        for func in functions:
+            try:
+                func_code = ast.unparse(func)
+                prompt = (
+                    "Given the following Python function, write a logical, non-trivial pytest test function for it. "
+                    "Do not simply echo the function or use trivial asserts. "
+                    "Include all necessary imports. "
+                    f"IMPORTANT: At the top of your test code, add 'from module import {func.name}'. "
+                    "Only call the function by its correct name. "
+                    "Only return the test code, nothing else.\n\n"
+                    f"{func_code}"
+                )
+                test_code, input_tokens, output_tokens = call_claude(func_code, prompt)
+                
+                # Remove markdown/code block formatting and non-code text
+                test_code = re.sub(r"^```python|^```|```$", "", test_code, flags=re.MULTILINE).strip()
+                
+                # Ensure import pytest is present
+                if "import pytest" not in test_code:
+                    test_code = "import pytest\n" + test_code
+                    
+                tests.append({
+                    'function': func.name,
+                    'function_code': func_code,
+                    'test_code': test_code,
+                    'input_tokens': input_tokens,
+                    'output_tokens': output_tokens
+                })
+            except Exception as e:
+                # Continue with other functions if one fails
+                tests.append({
+                    'function': func.name,
+                    'function_code': ast.unparse(func) if hasattr(ast, 'unparse') else str(func),
+                    'test_code': f"# Error generating test for {func.name}: {str(e)}",
+                    'input_tokens': 0,
+                    'output_tokens': 0
+                })
+                
+        return jsonify({'tests': tests})
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @tester_bp.route('/run_test', methods=['POST'])
 def run_test():

@@ -829,7 +829,7 @@
                     const div = document.createElement('div');
                     div.className = 'file-item';
                     div.textContent = file;
-                    div.onclick = () => loadDocFileContent(file);
+                    div.onclick = (event) => loadDocFileContent(file, event);
                     fileList.appendChild(div);
                 });
                 
@@ -843,7 +843,7 @@
             }
         }
 
-        async function loadDocFileContent(path) {
+        async function loadDocFileContent(path, event = null) {
             // Show loading indicator
             document.getElementById('docRightLoading').classList.add('show');
             document.getElementById('docSuggestion').style.display = 'none';
@@ -864,7 +864,9 @@
                 
                 // Update selected file in list
                 document.querySelectorAll('#docFileList .file-item').forEach(item => item.classList.remove('selected'));
-                event.target.classList.add('selected');
+                if (event && event.target) {
+                    event.target.classList.add('selected');
+                }
                 
                 currentDocFile = path;
                 currentDocContent = data.content;
