@@ -212,22 +212,36 @@ def generate_readme():
         files = []
         for item in r.json():
             if item['type'] == 'file':
-                if (item['name'].endswith('.py') or 
-                    item['name'].endswith('.html') or 
-                    item['name'] == "README.md"):
+                # Prioritize main application files for better project understanding
+                if (item['name'] in ['app.py', 'main.py', 'requirements.txt', 'requirement.txt', 'README.md'] or
+                    item['name'].endswith('.py') or 
+                    item['name'].endswith('.html')):
                     files.append(item['path'])
-            elif item['type'] == 'dir' and item['name'] not in {'venv', '.venv', '__pycache__', 'tests', 'migrations'}:
+            elif item['type'] == 'dir' and item['name'] not in {'venv', '.venv', '__pycache__', 'tests', 'migrations', '.git', 'node_modules'}:
                 files.extend(get_repo_files(item['path']))
         return files
 
     file_paths = get_repo_files()
     
-    # Read contents of each file (limit total size for API)
-    code_snippets = []
-    total_chars = 0
-    max_chars = 8000  # Limit to avoid API issues
+    # Prioritize files for better project understanding
+    priority_files = []
+    secondary_files = []
     
     for path in file_paths:
+        if any(priority_name in path for priority_name in ['app.py', 'main.py', 'requirements.txt', 'requirement.txt']):
+            priority_files.append(path)
+        elif path.endswith('.py') and '/' in path:  # Module files
+            secondary_files.append(path)
+        else:
+            secondary_files.append(path)
+    
+    # Read contents of files (prioritize main application files)
+    code_snippets = []
+    total_chars = 0
+    max_chars = 12000  # Increased limit for better analysis
+    
+    # First, analyze priority files (main app structure)
+    for path in priority_files[:3]:  # Limit to first 3 priority files
         if total_chars > max_chars:
             break
             
@@ -238,7 +252,36 @@ def generate_readme():
         if r.status_code == 200:
             try:
                 content = base64.b64decode(r.json()['content']).decode('utf-8')
-                snippet = f"File: {path}\n{content}\n"
+                snippet = f"=== MAIN APPLICATION FILE: {path} ===\n{content}\n\n"
+                if total_chars + len(snippet) > max_chars:
+                    break
+                code_snippets.append(snippet)
+                total_chars += len(snippet)
+            except Exception:
+                continue
+    
+    # Then analyze module structure (brief overview of each module)
+    modules_analyzed = set()
+    for path in secondary_files:
+        if total_chars > max_chars:
+            break
+        
+        # Extract module name
+        module_name = path.split('/')[0] if '/' in path else 'root'
+        if module_name in modules_analyzed:
+            continue
+        modules_analyzed.add(module_name)
+        
+        file_url = f"{GITHUB_API}/repos/{username}/{repo}/contents/{path}"
+        params = {'ref': branch}
+        r = requests.get(file_url, headers=headers, params=params)
+        
+        if r.status_code == 200:
+            try:
+                content = base64.b64decode(r.json()['content']).decode('utf-8')
+                # Take only first 500 characters of module files for overview
+                content_preview = content[:500] + "..." if len(content) > 500 else content
+                snippet = f"=== MODULE: {module_name} ({path}) ===\n{content_preview}\n\n"
                 if total_chars + len(snippet) > max_chars:
                     break
                 code_snippets.append(snippet)
@@ -246,12 +289,28 @@ def generate_readme():
             except Exception:
                 continue
 
-    # Compose prompt for the API
+    # Enhanced prompt for better project-level README generation
     prompt = (
-        "You are an expert software documentation assistant. "
-        "Given the following codebase, write a concise and informative README.md overview. "
-        "Summarize the main functionality, structure, and purpose of the code. "
-        "Reply ONLY with the README.md content in Markdown format.\n\n"
+        f"You are an expert software documentation assistant. Analyze the following codebase for the '{repo}' project "
+        "and write a comprehensive README.md that provides a PROJECT-LEVEL overview. "
+        
+        "CRITICAL INSTRUCTIONS: "
+        "- This is a UNIFIED DASHBOARD APPLICATION called MetricPage that combines multiple tools/modules "
+        "- DO NOT write about individual modules (AgentLogger, Docuwriter, TestBot, etc.) as separate projects "
+        "- Instead, describe this as ONE integrated web application with multiple features/capabilities "
+        "- Focus on the complete dashboard system and how users interact with it as a whole "
+        "- The main application appears to be a Flask-based web dashboard "
+        
+        "Include sections for: "
+        "1. Project Overview (describe as a unified dashboard application) "
+        "2. Features (list the integrated capabilities) "
+        "3. Architecture (Flask web application with modules) "
+        "4. Installation & Setup "
+        "5. Usage (how to use the dashboard) "
+        "6. API Endpoints (if any) "
+        
+        "Remember: Write about MetricPage as ONE application, not multiple separate tools. "
+        "Reply ONLY with the README.md content in proper Markdown format.\n\n"
         + "\n".join(code_snippets)
     )
 
