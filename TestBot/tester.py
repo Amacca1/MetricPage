@@ -285,6 +285,8 @@ def call_claude(function_code, prompt):
             "10. Use only double quotes (\") for strings, never apostrophes (') "
             "11. Test route endpoints with proper URL paths including blueprint prefixes "
             "12. Mock any external functions or constants used (like get_github_headers, GITHUB_API, etc.) "
+            "13. Always Add from unittest.mock import patch at the top of the file"
+            
             "\n\n"
             "Example Flask route test pattern:\n"
             "```python\n"
@@ -326,6 +328,7 @@ def call_claude(function_code, prompt):
             "6. Return only the test code, no explanations "
             "7. For render_template calls, mock them to avoid template dependencies"
             "8. Mock any external functions or constants used in the function"
+            "9. Always Add from unittest.mock import patch at the top of the file"
             "\n\n"
             f"Function to test:\n{function_code}"
         )
@@ -410,8 +413,7 @@ def generate_tests():
                 
                 # Ensure unittest.mock imports are present if patch is used
                 if "patch(" in test_code and "from unittest.mock import" not in test_code:
-                    # Add mock import after pytest import
-                    test_code = test_code.replace("import pytest", "import pytest\nfrom unittest.mock import patch, Mock")
+                    test_code = "from unittest.mock import patch, Mock\n" + test_code
                 elif "patch(" in test_code and "patch" not in test_code:
                     # Add patch to existing mock import
                     test_code = re.sub(r'from unittest\.mock import ([^\\n]+)', r'from unittest.mock import \1, patch', test_code)
@@ -441,17 +443,9 @@ def generate_tests():
 @pytest.fixture
 def app():
     from flask import Flask
-    from ChatBot.chatbot import chatbot_bp
-    from AgentLogger.log import logger_bp
-    from Docuwriter.docuwriter import docuwriter_bp
-    from TestBot.tester import tester_bp
-    
     app = Flask(__name__)
     app.config['TESTING'] = True
-    app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
-    app.register_blueprint(logger_bp, url_prefix='/logger')
-    app.register_blueprint(docuwriter_bp, url_prefix='/writer')
-    app.register_blueprint(tester_bp, url_prefix='/tester')
+    # Optionally: register blueprints if they are imported in the code under test
     return app
 
 @pytest.fixture
@@ -470,6 +464,37 @@ def client(app):
                         lines.insert(insert_pos, fixture_code)
                         test_code = '\n'.join(lines)
                 
+                # Remove any incorrect client fixture definitions
+                test_code = re.sub(
+                    r"@pytest\.fixture\s*\ndef client\s*\([^)]*\):\s*[\s\S]*?return app\.test_client\(\)",
+                    "", test_code
+                )
+                # Always insert the correct client fixture after the app fixture
+                if "@pytest.fixture\ndef client(app):" not in test_code:
+                    correct_client_fixture = (
+                        "@pytest.fixture\n"
+                        "def client(app):\n"
+                        "    return app.test_client()\n"
+                    )
+                    # Insert after app fixture
+                    if "def app():" in test_code:
+                        lines = test_code.split('\n')
+                        for i, line in enumerate(lines):
+                            if line.strip().startswith("def app("):
+                                # Find end of app fixture
+                                for j in range(i+1, len(lines)):
+                                    if lines[j].strip() == "":
+                                        insert_pos = j+1
+                                        break
+                                else:
+                                    insert_pos = i+1
+                                lines.insert(insert_pos, correct_client_fixture)
+                                test_code = '\n'.join(lines)
+                                break
+                    else:
+                        # If no app fixture, add at the top
+                        test_code = correct_client_fixture + "\n" + test_code
+                
                 # Remove duplicate imports (e.g., from TestBot.tester import ...)
                 test_code = re.sub(r'from\s+\w+\.\w+\s+import\s+[^\n]+\n', '', test_code)
                 
@@ -487,17 +512,9 @@ def client(app):
 @pytest.fixture
 def app():
     from flask import Flask
-    from ChatBot.chatbot import chatbot_bp
-    from AgentLogger.log import logger_bp
-    from Docuwriter.docuwriter import docuwriter_bp
-    from TestBot.tester import tester_bp
-    
     app = Flask(__name__)
     app.config['TESTING'] = True
-    app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
-    app.register_blueprint(logger_bp, url_prefix='/logger')
-    app.register_blueprint(docuwriter_bp, url_prefix='/writer')
-    app.register_blueprint(tester_bp, url_prefix='/tester')
+    # Optionally: register blueprints if they are imported in the code under test
     return app
 
 @pytest.fixture
@@ -539,6 +556,15 @@ def client(app):
                         lines.insert(insert_pos, import_line)
                         test_code = '\n'.join(lines)
                     
+                tests.append({
+                    'function': func.name,
+                    'function_code': func_code,
+                    'test_code': test_code,
+                    'input_tokens': input_tokens,
+                    'output_tokens': output_tokens
+                })
+            except Exception as e:
+                # Continue with other functions if one fails
                 tests.append({
                     'function': func.name,
                     'function_code': func_code,
@@ -842,11 +868,16 @@ def generate_iterative_tests():
                             test_code = "import pytest\n" + test_code
                         
                         if "patch(" in test_code and "from unittest.mock import" not in test_code:
-                            test_code = test_code.replace("import pytest", "import pytest\nfrom unittest.mock import patch, Mock")
+                            test_code = "from unittest.mock import patch, Mock\n" + test_code
+                        elif "patch(" in test_code and "patch" not in test_code:
+                            # Add patch to existing mock import
+                            test_code = re.sub(r'from unittest\.mock import ([^\\n]+)', r'from unittest.mock import \1, patch', test_code)
                         
                         # Fix import statements to use 'module' consistently
+                        # Replace various import patterns
                         test_code = re.sub(r'from\s+(?:app|your_module|my_module|test_module|main|\w+_module|\w+\.py|calculator|tester|chatbot|docuwriter|logger)\s+import', 'from module import', test_code)
                         test_code = re.sub(r'patch\(["\'](?:app|your_module|my_module|test_module|main|\w+_module|\w+\.py|calculator)\.', 'patch("module.', test_code)
+                        # Handle standalone module references in patches
                         test_code = re.sub(r'patch\(["\'](?:app|your_module|my_module|test_module|main|calculator)(["\'])', r'patch("module\1', test_code)
                         
                         # Remove duplicate imports and clean up any remaining bad imports
@@ -885,23 +916,13 @@ def generate_iterative_tests():
 @pytest.fixture
 def app():
     from flask import Flask
-    from ChatBot.chatbot import chatbot_bp
-    from AgentLogger.log import logger_bp
-    from Docuwriter.docuwriter import docuwriter_bp
-    from TestBot.tester import tester_bp
-    
     app = Flask(__name__)
     app.config['TESTING'] = True
-    app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
-    app.register_blueprint(logger_bp, url_prefix='/logger')
-    app.register_blueprint(docuwriter_bp, url_prefix='/writer')
-    app.register_blueprint(tester_bp, url_prefix='/tester')
     return app
 
 @pytest.fixture
 def client(app):
     return app.test_client()
-
 '''
                             lines = test_code.split('\n')
                             insert_pos = 0
@@ -927,7 +948,7 @@ def client(app):
                             test_code = "import pytest\n" + test_code
                         
                         if "patch(" in test_code and "from unittest.mock import" not in test_code:
-                            test_code = test_code.replace("import pytest", "import pytest\nfrom unittest.mock import patch, Mock")
+                            test_code = "from unittest.mock import patch, Mock\n" + test_code
                         elif "patch(" in test_code and "patch" not in test_code:
                             test_code = re.sub(r'from unittest\.mock import ([^\n]+)', r'from unittest.mock import \1, patch', test_code)
                         
